@@ -1376,7 +1376,9 @@ document.getElementById('voiceBtn').addEventListener('click', () => {
 
 // ===== JANGGI ONLINE START =====
 // 온라인 2인 대전 — games_server.py (방 코드 매칭 + 수 중계, 규칙 검증은 양쪽 클라이언트 엔진)
-const API = location.port === '8891' ? '' : 'http://localhost:8891';
+const API = location.port === '8891' ? ''
+  : (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://localhost:8891'
+  : '/games';   // 클라우드(통합 서버)·터널: 같은 오리진의 /games/api/* 사용
 
 function onlineInitState() {
   return {

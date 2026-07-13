@@ -104,6 +104,10 @@ class Handler(SimpleHTTPRequestHandler):
 
     # ---------------- POST ----------------
     def do_POST(self):
+        # 통합 서버(cloud_server.py)를 안 거치고 단독 실행+터널로 공개된 경우에도
+        # 새 클라이언트의 /games/api/* 호출을 받도록 프리픽스를 벗긴다
+        if self.path.startswith("/games/api/"):
+            self.path = self.path[len("/games"):]
         path = urlparse(self.path).path
         try:
             data = self._body()
@@ -210,6 +214,8 @@ class Handler(SimpleHTTPRequestHandler):
 
     # ---------------- GET ----------------
     def do_GET(self):
+        if self.path.startswith("/games/api/"):
+            self.path = self.path[len("/games"):]
         parsed = urlparse(self.path)
         if parsed.path == "/api/poll":
             q = parse_qs(parsed.query)

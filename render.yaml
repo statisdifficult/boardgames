@@ -1,0 +1,15 @@
+# Render 블루프린트 — 대시보드에서 New > Blueprint 로 이 레포를 연결하면 자동 배포됨
+# (자세한 순서는 DEPLOY.md 참고)
+services:
+  - type: web
+    name: boardgames
+    runtime: python
+    plan: free
+    # 표준 라이브러리만 사용 — requirements.txt의 torch는 학습용이므로 설치하지 않는다
+    # (무료 티어 512MB에 torch는 무리. 바투 '신경망' 난이도는 자동으로 UCT 폴백)
+    buildCommand: 'echo "stdlib only — nothing to install"'
+    startCommand: python cloud_server.py
+    healthCheckPath: /games/api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.6

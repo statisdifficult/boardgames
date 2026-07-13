@@ -1493,7 +1493,9 @@ document.getElementById('voiceBtn').addEventListener('click', () => {
 });
 
 // ---- 온라인 2인 대전 (games_server.py 연동) ----
-const API = location.port === '8891' ? '' : 'http://localhost:8891';
+const API = location.port === '8891' ? ''
+  : (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://localhost:8891'
+  : '/games';   // 클라우드(통합 서버)·터널: 같은 오리진의 /games/api/* 사용
 let online = { active: false, room: null, token: null, player: 0, seq: 0, first: 1,
                joined: false, myRematch: false, oppRematch: false,
                drawOffered: false, resultReported: false };

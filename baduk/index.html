@@ -962,7 +962,9 @@ document.getElementById('voiceBtn').addEventListener('click', () => {
 // 클라이언트가 같은 엔진으로 실행한다 (완전 공개 정보 게임 — batoo의 서버 권위 방식과 다름).
 // 내 수: 로컬 적용 성공 → POST move. 409면 되돌리고 동기화 오류 표시.
 // 상대 수: 1초 폴링으로 받은 move 이벤트를 tryMove/pass로 그대로 적용.
-const API = location.port === '8891' ? '' : 'http://localhost:8891';
+const API = location.port === '8891' ? ''
+  : (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://localhost:8891'
+  : '/games';   // 클라우드(통합 서버)·터널: 같은 오리진의 /games/api/* 사용
 let online = {
   active: false, room: null, token: null, myPlayer: 0,
   seq: 0,               // 마지막으로 처리한 이벤트 seq

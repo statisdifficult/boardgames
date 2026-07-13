@@ -1374,7 +1374,9 @@ function handleAiResponse(idx, token) {
 // 규칙 판정(금수/5목/무승부)은 양쪽 클라이언트가 동일한 엔진으로 수행한다(완전 공개 정보 게임).
 // batoo(서버 권위)와 달리 서버는 판을 모른다 — 종국은 클라가 {type:'result'}로 보고.
 // 흑(선공) = 첫 판 방장(P1), 한판 더(restart)마다 서버 first 기준으로 색 교대.
-const API = location.port === '8891' ? '' : 'http://localhost:8891';
+const API = location.port === '8891' ? ''
+  : (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://localhost:8891'
+  : '/games';   // 클라우드(통합 서버)·터널: 같은 오리진의 /games/api/* 사용
 
 function freshOnline() {
   return { active: false, room: null, token: null, myPlayer: 0, seq: 0,
