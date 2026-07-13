@@ -6,28 +6,37 @@
 ## 구조 한눈에
 
 ```
-index.html            게임 허브 (각 게임으로 링크)
-batoo/index.html      ★ 바투 — 메인 게임 (단일 HTML/JS, 로컬 2인 + 온라인 + AI)
+index.html            게임 허브 (19개 게임 전부 카드로 링크됨)
+batoo/index.html      ★ 바투 — 메인 게임 (로컬 2인 + 오프라인 AI(localai) + 온라인 + 신경망 AI)
 server.py             ★ 바투 온라인/AI 서버 (파이썬 stdlib만, 서버 권위 방식)
+games_server.py       바둑/오목/체스/장기 온라인 서버 (수 중계 방식, 기본 8891)
+cloud_server.py       ★ 통합 서버 — server.py(/api/*) + games_server.py(/games/api/*)를
+                      한 포트로 라우팅. 클라우드 배포·로컬 올인원 실행용. PORT 환경변수 지원
+start_online.sh       원클릭 인터넷 공개 (cloud_server + localhost.run 터널, Ctrl+C로 동시 종료)
+tunnel.sh             터널만 따로 (기존 방식 — server.py 먼저 켠 뒤 실행)
+render.yaml           Render 무료 배포 블루프린트 (stdlib만, torch 미설치)
+DEPLOY.md             클라우드 배포 안내서 (가입~대전까지)
 train_batoo.py        바투 착수전용 알파제로 학습기 (단일 파일, torch)
 train_batoo_full.py   바투 풀게임(히든·스캔·베팅 포함) 학습기
 arena.py / arena_full.py   학습모델 vs UCT 자동 대결 (승률 측정)
 batoo_net.pt          현역 착수전용 모델 (iter739, vs UCT 62% — 게임에 연결됨)
 batoo_net_full.pt     풀게임 모델 (iter510 — ⚠️ 백 정책 붕괴 버그로 서버에서 비활성화됨)
 README_LINUX_TRAIN.md 학습 전용 인수인계 (다코어 리눅스에서 돌리는 법, 사건 이력)
-tunnel.sh             인터넷 공개용 ssh 터널 (localhost.run)
 batoo_colab.ipynb     코랩 학습용 노트북
-games_server.py       (별도 세션 작업) 다른 게임들 서버
-baduk/ omok/ chess/ janggi/ holdem/ 등   각 게임 단일 HTML (다크 테마 통일)
+baduk/ omok/ chess/ 등   게임 19종 단일 HTML (다크 테마 통일, 전부 우하단 📖 룰 패널 내장)
 ```
 
 ## 실행
 
 ```bash
-python3 server.py            # 바투 서버 (기본 8890) → http://localhost:8890/batoo/
+python3 cloud_server.py      # 올인원 (허브+바투+온라인 게임 전부, 기본 8890) ← 권장
+./start_online.sh            # 위 서버 + 인터넷 터널 원클릭 (Ctrl+C로 동시 종료)
+python3 server.py            # 바투만 (기본 8890) → http://localhost:8890/batoo/
+python3 games_server.py      # 바둑/오목/체스/장기 온라인만 (기본 8891)
 python3 arena.py 8           # 착수전용 모델 vs UCT 8판 측정
-./tunnel.sh                  # 인터넷 공개 (서버 먼저 켤 것! 순서 바뀌면 503으로 꼬임)
+./tunnel.sh                  # 터널만 (서버 먼저 켤 것! 순서 바뀌면 503으로 꼬임)
 ```
+클라우드 24시간 서버는 `DEPLOY.md` (Render 무료 — 코드·설정 준비 완료, 계정 연결만 하면 됨).
 
 **의존성**: 게임·서버는 파이썬 표준 라이브러리만으로 완전 동작. `torch`는 신경망 AI 난이도와
 학습에만 필요 (`pip install torch`) — 없으면 서버가 자동으로 UCT AI로 폴백하므로 게임은 그대로 됨.
@@ -69,8 +78,24 @@ BatooNet 클래스로, batoo_net_full.pt는 train_batoo_full.py로 로드. 체�
 - 방 코드(4자리) + 토큰, 1초 폴링 동기화. AI 대전(`ai`)·AI vs AI 관전(`aivai`, 1.6초/수) 모드
 - 시계: 총시간+초읽기, 서버 시각 기준 판정
 
+## 온라인 아키텍처 (games_server.py — 바둑/오목/체스/장기)
+
+- 수 중계 방식: 완전 공개 정보 게임이라 규칙 검증은 양쪽 클라이언트 동일 JS 엔진이 수행, 서버는 차례/참가자 검증+이벤트 중계만
+- 클라이언트 API 감지: `location.port==8891`→같은 오리진, localhost→`http://localhost:8891`, 그 외(클라우드·터널)→`/games` 프리픽스 (cloud_server가 라우팅, games_server 단독 실행도 프리픽스 수용)
+- 종국은 `{type:"result"}`로 서버에 보고되어 room["result"]에 저장 — 전적/레이팅 확장 지점
+
+## 2026-07-13 웹 세션 작업 이력
+
+- 허브에 누락 9개 게임 카드 추가 (19종 전부 노출)
+- **솔리테어 시작 크래시 수정**: stopAuto()가 state=null 시점에 updateUI() 호출 → 게임이 아예 안 켜지던 버그
+- **바투 오프라인 AI(localai 모드)**: 서버 없이 브라우저 안에서 도는 규칙 기반 상대(P2 담당, 베이스/베팅/착수, 히든·스캔 미사용). 규칙 엔진 3벌은 건드리지 않음
+- **전 게임 📖 룰 패널**: 공통 패턴(#rulesBtn/#rulesPanel/.rulesBox), 각 게임 실제 구현과 대조해 작성. 새 게임 추가 시 같은 패턴 유지할 것
+- **클라우드 배포 준비**: cloud_server.py(경로 라우팅 통합), render.yaml, DEPLOY.md, start_online.sh. 전 엔드포인트 + torch 차단 폴백까지 검증 완료. Render 계정 연결(사용자 액션)만 남음
+- 검증 방법: Playwright(chromium)로 헤드리스 브라우저 자동 테스트 — 19개 게임 로드/룰 패널/온라인 2인 동기화(오목 방 생성→참가→착수 중계) 전부 통과
+
 ## 개발 팁
 
 - 커밋되지 않는 파일: 모델 백업들(batoo_net_prev/iter*/broken — .gitignore 참조)
 - 원래 개발 맥에는 node 없음 → JS 로직 테스트를 osascript JXA로 했음. 새 환경에 node 있으면 그냥 node 써도 됨
 - 각 게임 HTML은 의존성 없는 단일 파일 — 정적 서버면 어디서든 동작
+- 게임 규칙을 바꾸면 해당 게임의 📖 룰 패널 내용도 같이 갱신할 것
