@@ -150,6 +150,22 @@
     .clock { min-width: 0; flex: 1; font-size: 13px; padding: 5px 8px; }
     .hint { font-size: 11px; }
   }
+  /* ---- 룰 패널 (전 게임 공통 패턴) ---- */
+  #rulesBtn { position: fixed; right: 14px; bottom: 14px; z-index: 40;
+    background: var(--panel); color: var(--text); border: 1px solid rgba(128,128,128,.3);
+    border-radius: 20px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  #rulesBtn:hover { border-color: var(--accent); color: var(--accent); }
+  #rulesPanel { position: fixed; inset: 0; background: rgba(10,12,16,.72);
+    display: none; z-index: 41; align-items: center; justify-content: center; padding: 20px; }
+  #rulesPanel.show { display: flex; }
+  .rulesBox { background: var(--panel); color: var(--text); max-width: 560px; max-height: 80vh;
+    overflow-y: auto; border-radius: 14px; padding: 24px 26px; line-height: 1.7; font-size: 14px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.5); text-align: left; }
+  .rulesBox h2 { color: var(--accent); font-size: 19px; margin-bottom: 10px; }
+  .rulesBox h3 { font-size: 15px; margin: 14px 0 4px; }
+  .rulesBox ul { padding-left: 18px; margin: 4px 0; }
+  .rulesBox li { margin: 3px 0; }
+  .rulesBox .closeRow { text-align: right; margin-top: 14px; }
 </style>
 </head>
 <body>
@@ -205,6 +221,37 @@
 
   <div class="hint" id="hintText"></div>
   <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <button id="rulesBtn">📖 룰</button>
+  <div id="rulesPanel">
+    <div class="rulesBox">
+      <h2>📖 오목 규칙</h2>
+      <h3>목표</h3>
+      <ul>
+        <li>15×15 판에서 가로·세로·대각선으로 <b>내 돌 5개를 먼저 이으면 승리</b>합니다.</li>
+        <li>⚫ 흑이 선공, 판이 가득 차면 무승부입니다.</li>
+      </ul>
+      <h3>룰 3종</h3>
+      <ul>
+        <li><b>자유</b>: 금수 없음 — 5개 이상(6목 포함)이면 누구든 승리.</li>
+        <li><b>렌주</b>: 선공(흑)의 유리함을 줄이는 규칙. 흑은 <b>3·3, 4·4, 장목(6목 이상)이 금수</b>이고 정확히 5만 승리 — 금수 자리는 호버 시 빨간 ✕로 표시됩니다. 백은 제한 없음(6목도 승리).</li>
+        <li><b>스왑2</b> (국제 공식 오프닝): 플레이어 1이 흑·백·흑 3수를 놓으면, 플레이어 2가 <b>흑 선택 / 백 선택 / 2수 추가 후 상대에게 색 선택권</b> 중 하나를 고릅니다. 본게임은 <b>정확히 5만 승리</b>(6목 이상 무효).</li>
+      </ul>
+      <h3>꿀팁</h3>
+      <ul>
+        <li>양끝이 열린 3(열린3)은 다음 수에 열린4가 되니 <b>미리 막으세요</b>.</li>
+        <li>4와 열린3을 동시에 만드는 <b>4·3</b>이 대표적인 필승 공격입니다.</li>
+        <li>중앙 근처가 줄을 만들 방향이 많아 유리해요 — 첫 수는 중앙 부근에.</li>
+      </ul>
+      <h3>이 판의 기능</h3>
+      <ul>
+        <li>상대: 사람(한 화면 교대) / AI 쉬움·보통·어려움 — AI 상대일 땐 내 돌 색 선택 가능, AI는 자유·렌주 룰만 지원(스왑2 선택 시 자유로 진행).</li>
+        <li>시간제한(3~20분)·초읽기(10/30/60초×3)·음성 초읽기(🔊) 지원. 무르기·기권 가능.</li>
+        <li>🌐 온라인: 방 코드 4자리로 2인 대전(자유/렌주 — 방장 설정). 무승부 제안 버튼 지원, 시계·무르기·스왑2는 미지원. 종국 후 "한판 더"마다 흑백 교대.</li>
+      </ul>
+      <div class="closeRow"><button id="rulesCloseBtn">닫기</button></div>
+    </div>
+  </div>
 
   <div id="overlay">
     <h2 id="overlayTitle"></h2>
@@ -1747,6 +1794,15 @@ document.getElementById('onlineBtn').addEventListener('click', showOnlineMenu);
 document.getElementById('drawBtn').addEventListener('click', offerDraw);
 
 newGame();
+
+// ---- 룰 패널 (전 게임 공통 패턴) ----
+(function () {
+  const panel = document.getElementById('rulesPanel');
+  document.getElementById('rulesBtn').addEventListener('click', () => panel.classList.add('show'));
+  document.getElementById('rulesCloseBtn').addEventListener('click', () => panel.classList.remove('show'));
+  panel.addEventListener('click', e => { if (e.target === panel) panel.classList.remove('show'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') panel.classList.remove('show'); });
+})();
 </script>
 </body>
 </html>

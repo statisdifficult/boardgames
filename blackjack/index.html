@@ -265,6 +265,22 @@
     #overlay p { font-size: 14px; }
     #overlayBtns { min-width: 0; width: 100%; max-width: 300px; }
   }
+  /* ---- 룰 패널 (전 게임 공통 패턴) ---- */
+  #rulesBtn { position: fixed; right: 14px; bottom: 14px; z-index: 40;
+    background: var(--panel); color: var(--text); border: 1px solid rgba(128,128,128,.3);
+    border-radius: 20px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  #rulesBtn:hover { border-color: var(--accent); color: var(--accent); }
+  #rulesPanel { position: fixed; inset: 0; background: rgba(10,12,16,.72);
+    display: none; z-index: 41; align-items: center; justify-content: center; padding: 20px; }
+  #rulesPanel.show { display: flex; }
+  .rulesBox { background: var(--panel); color: var(--text); max-width: 560px; max-height: 80vh;
+    overflow-y: auto; border-radius: 14px; padding: 24px 26px; line-height: 1.7; font-size: 14px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.5); text-align: left; }
+  .rulesBox h2 { color: var(--accent); font-size: 19px; margin-bottom: 10px; }
+  .rulesBox h3 { font-size: 15px; margin: 14px 0 4px; }
+  .rulesBox ul { padding-left: 18px; margin: 4px 0; }
+  .rulesBox li { margin: 3px 0; }
+  .rulesBox .closeRow { text-align: right; margin-top: 14px; }
 </style>
 </head>
 <body>
@@ -322,6 +338,38 @@
     스플릿 후 21은 블랙잭이 아님) · 서렌더·보험은 미구현(단순화).
   </div>
   <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <button id="rulesBtn">📖 룰</button>
+  <div id="rulesPanel">
+    <div class="rulesBox">
+      <h2>📖 블랙잭 규칙</h2>
+      <h3>목표</h3>
+      <ul>
+        <li>딜러보다 <b>21에 가깝게</b> 만들면 승리. 단, 21을 넘으면(버스트) 그 즉시 집니다.</li>
+        <li>카드 값: 2~10은 숫자 그대로, J·Q·K는 <b>10</b>, A는 <b>11 또는 1</b> (버스트될 것 같으면 자동으로 1로 계산 — "소프트" 핸드).</li>
+      </ul>
+      <h3>진행</h3>
+      <ul>
+        <li>칩(100/500/1000, 올인 가능)으로 베팅하고 딜 — 나는 2장 오픈, 딜러는 1장 오픈 + 1장 히든.</li>
+        <li><b>히트</b>: 1장 더 받기 (21이 되면 자동 스탠드). / <b>스탠드</b>: 그만 받기.</li>
+        <li><b>더블</b>: 첫 2장에서만, 잔액이 베팅만큼 남아 있을 때. 베팅을 2배로 올리고 딱 1장만 받고 종료.</li>
+        <li><b>스플릿</b>: 첫 2장이 <b>같은 랭크</b>일 때 1회만 가능(잔액 필요). 두 핸드로 나눠 각각 독립 진행. <b>A 스플릿은 각 1장씩만</b> 받고 끝나며, 스플릿 후 21은 블랙잭으로 치지 않습니다.</li>
+        <li>내 차례가 끝나면 딜러가 히든 카드를 공개하고 <b>17 미만이면 히트, 소프트 17 포함 모든 17 이상에서 스탠드</b>(S17).</li>
+      </ul>
+      <h3>배당</h3>
+      <ul>
+        <li>승리 1:1 · <b>블랙잭(첫 2장으로 21)은 3:2</b> · 동점은 푸시(베팅 반환) · 버스트/패배는 베팅 상실.</li>
+        <li>딜러도 블랙잭이면 서로 블랙잭일 때만 푸시입니다.</li>
+      </ul>
+      <h3>이 판의 기능</h3>
+      <ul>
+        <li>6덱 슈 — 약 75% 소진되면 다음 판 전에 자동 리셔플.</li>
+        <li>시작 잔액 10,000 (플레이 머니). 잔액이 0이 되면 게임 오버 — 새 게임으로 다시 시작.</li>
+        <li>서렌더·보험은 없는 단순화 룰입니다.</li>
+      </ul>
+      <div class="closeRow"><button id="rulesCloseBtn">닫기</button></div>
+    </div>
+  </div>
 
   <div id="overlay">
     <h2 id="overlayTitle"></h2>
@@ -783,6 +831,15 @@ $id('nextBtn').addEventListener('click', onNext);
 $id('newBtn').addEventListener('click', newSession);
 
 render();
+
+// ---- 룰 패널 (전 게임 공통 패턴) ----
+(function () {
+  const panel = document.getElementById('rulesPanel');
+  document.getElementById('rulesBtn').addEventListener('click', () => panel.classList.add('show'));
+  document.getElementById('rulesCloseBtn').addEventListener('click', () => panel.classList.remove('show'));
+  panel.addEventListener('click', e => { if (e.target === panel) panel.classList.remove('show'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') panel.classList.remove('show'); });
+})();
 </script>
 </body>
 </html>

@@ -305,6 +305,22 @@
     .hint { font-size: 11px; }
     #overlayBtns { min-width: 0; width: 100%; max-width: 300px; }
   }
+  /* ---- 룰 패널 (전 게임 공통 패턴) ---- */
+  #rulesBtn { position: fixed; right: 14px; bottom: 14px; z-index: 40;
+    background: var(--panel); color: var(--text); border: 1px solid rgba(128,128,128,.3);
+    border-radius: 20px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  #rulesBtn:hover { border-color: var(--accent); color: var(--accent); }
+  #rulesPanel { position: fixed; inset: 0; background: rgba(10,12,16,.72);
+    display: none; z-index: 41; align-items: center; justify-content: center; padding: 20px; }
+  #rulesPanel.show { display: flex; }
+  .rulesBox { background: var(--panel); color: var(--text); max-width: 560px; max-height: 80vh;
+    overflow-y: auto; border-radius: 14px; padding: 24px 26px; line-height: 1.7; font-size: 14px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.5); text-align: left; }
+  .rulesBox h2 { color: var(--accent); font-size: 19px; margin-bottom: 10px; }
+  .rulesBox h3 { font-size: 15px; margin: 14px 0 4px; }
+  .rulesBox ul { padding-left: 18px; margin: 4px 0; }
+  .rulesBox li { margin: 3px 0; }
+  .rulesBox .closeRow { text-align: right; margin-top: 14px; }
 </style>
 </head>
 <body>
@@ -410,6 +426,44 @@
     <h2 id="overlayTitle"></h2>
     <p id="overlayDesc"></p>
     <div id="overlayBtns"></div>
+  </div>
+
+  <button id="rulesBtn">📖 룰</button>
+  <div id="rulesPanel">
+    <div class="rulesBox">
+      <h2>📖 섯다 규칙</h2>
+      <h3>목표</h3>
+      <ul>
+        <li>화투 20장(1~10월 각 2장) 중 <b>2장</b>으로 더 높은 족보를 만들어 판돈을 가져갑니다.</li>
+        <li>시작 잔액 100,000 — 상대 잔액을 0으로 만들면 최종 승리, 내가 0이 되면 게임 오버.</li>
+      </ul>
+      <h3>진행</h3>
+      <ul>
+        <li>판마다 참가비(삥) <b>1,000</b>을 걸고 시작 → <b>1장</b> 받고 베팅 → <b>2장째</b> 받고 베팅 → 쇼다운.</li>
+        <li><b>선</b>(직전 판 승자)이 각 베팅을 먼저 시작합니다.</li>
+        <li>베팅: <b>다이</b>(포기 — 상대가 판돈 획득) · <b>콜</b>(상대 베팅 맞추기) · <b>삥</b>(기본 1,000) ·
+            <b>하프</b>(콜 + 판돈 절반) · <b>따당</b>(상대 베팅의 2배) · <b>올인</b>. 올인 초과분은 쇼다운 때 반환.</li>
+      </ul>
+      <h3>족보 (높은 순)</h3>
+      <ul>
+        <li><b>38광땡</b> &gt; 18광땡 &gt; 13광땡 &gt; <b>장땡(10땡)~1땡</b>(같은 월 2장) &gt;
+            알리(1·2) &gt; 독사(1·4) &gt; 구삥(1·9) &gt; 장삥(1·10) &gt; 장사(4·10) &gt; 세륙(4·6) &gt;
+            <b>갑오(9끗)</b>~1끗 &gt; <b>망통(0끗)</b>.</li>
+        <li>끗은 두 달 합의 <b>일의 자리</b>로 계산해요. 자세한 표는 아래 <b>족보표</b> 버튼에서 확인하세요.</li>
+        <li>끗 동점 등 무승부는 <b>재경기</b> — 판돈은 각자 반환됩니다.</li>
+      </ul>
+      <h3>특수 규칙 (토글로 켜고 끔 · 다음 판부터 적용)</h3>
+      <ul>
+        <li><b>암행어사</b>(4월+7월 열끗): 13·18광땡을 잡습니다(38광땡 제외). 그 외 상대에겐 1끗.</li>
+        <li><b>땡잡이</b>(3월+7월): 장땡~1땡을 잡습니다(광땡 제외). 그 외 상대에겐 망통.</li>
+        <li><b>구사</b>(4월+9월): 상대가 알리 이하(땡 미만)면 무승부·재경기(판돈 반환).</li>
+      </ul>
+      <h3>이 판의 기능</h3>
+      <ul>
+        <li>AI와 1:1 헤즈업 · 이긴 사람이 다음 판 선 · 특수 룰 3종 토글 · <b>족보표</b> 버튼으로 전체 족보 확인.</li>
+      </ul>
+      <div class="closeRow"><button id="rulesCloseBtn">닫기</button></div>
+    </div>
   </div>
 
 <script>
@@ -1040,6 +1094,15 @@ for (const [id, key] of Object.entries(OPT_MAP)) {
 }
 
 newGame();
+
+// ---- 룰 패널 (전 게임 공통 패턴) ----
+(function () {
+  const panel = document.getElementById('rulesPanel');
+  document.getElementById('rulesBtn').addEventListener('click', () => panel.classList.add('show'));
+  document.getElementById('rulesCloseBtn').addEventListener('click', () => panel.classList.remove('show'));
+  panel.addEventListener('click', e => { if (e.target === panel) panel.classList.remove('show'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') panel.classList.remove('show'); });
+})();
 </script>
 </body>
 </html>

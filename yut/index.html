@@ -197,6 +197,22 @@
     .pl { min-width: 132px; padding: 6px 10px; font-size: 12px; }
     .hint { font-size: 11px; }
   }
+  /* ---- 룰 패널 (전 게임 공통 패턴) ---- */
+  #rulesBtn { position: fixed; right: 14px; bottom: 14px; z-index: 40;
+    background: var(--panel); color: var(--text); border: 1px solid rgba(128,128,128,.3);
+    border-radius: 20px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  #rulesBtn:hover { border-color: var(--accent); color: var(--accent); }
+  #rulesPanel { position: fixed; inset: 0; background: rgba(10,12,16,.72);
+    display: none; z-index: 41; align-items: center; justify-content: center; padding: 20px; }
+  #rulesPanel.show { display: flex; }
+  .rulesBox { background: var(--panel); color: var(--text); max-width: 560px; max-height: 80vh;
+    overflow-y: auto; border-radius: 14px; padding: 24px 26px; line-height: 1.7; font-size: 14px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.5); text-align: left; }
+  .rulesBox h2 { color: var(--accent); font-size: 19px; margin-bottom: 10px; }
+  .rulesBox h3 { font-size: 15px; margin: 14px 0 4px; }
+  .rulesBox ul { padding-left: 18px; margin: 4px 0; }
+  .rulesBox li { margin: 3px 0; }
+  .rulesBox .closeRow { text-align: right; margin-top: 14px; }
 </style>
 </head>
 <body>
@@ -260,6 +276,48 @@
     출발점을 지나면 완주, 말 4개를 먼저 완주시키면 승리!
   </div>
   <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <button id="rulesBtn">📖 룰</button>
+  <div id="rulesPanel">
+    <div class="rulesBox">
+      <h2>📖 윷놀이 규칙</h2>
+      <h3>목표</h3>
+      <ul>
+        <li>말 4개를 모두 완주시키면 승리! 출발·도착점을 <b>지나서 나가면</b> 완주입니다.</li>
+        <li>2~4인 — 좌석마다 사람/AI를 자유롭게 섞을 수 있어요.</li>
+      </ul>
+      <h3>진행 방법</h3>
+      <ul>
+        <li>윷가락 4개를 던져 <b>도(1)·개(2)·걸(3)·윷(4)·모(5)</b>칸을 갑니다. <b>윷·모는 한 번 더!</b></li>
+        <li>모인 결과는 "남은 결과" 칩에 쌓이고, <b>원하는 순서로 골라</b> 씁니다 — 칩을 누른 뒤 움직일 말(또는 대기 말 ●)을 클릭하고 목적지를 누르세요.</li>
+        <li><b>빽도</b>: 빨간 점 가락 하나만 배가 되면 빽도 — 지나온 길로 <b>1칸 후퇴</b>. 판에 내 말이 없으면 그 결과는 버려지고 차례가 넘어갑니다. (설정에서 끄기 가능)</li>
+        <li>확률은 개 6/16 &gt; 걸 4/16 &gt; 도 3/16 &gt; 윷·모·빽도 각 1/16.</li>
+      </ul>
+      <h3>지름길 (윷판 29지점)</h3>
+      <ul>
+        <li>외곽 20지점 + 대각선 9지점. 반시계로 돕니다.</li>
+        <li><b>첫 모(오른쪽 위)·뒷모(왼쪽 위) 모서리나 중앙 방에 "정확히 멈춘" 경우에만</b> 다음 이동에서 지름길/바깥길을 고를 수 있어요.</li>
+        <li>중앙 방에 멈추면 도착점 쪽 최단 코스로 질러갈 수 있습니다. 중앙을 지나치기만 하면 원래 방향을 유지합니다.</li>
+      </ul>
+      <h3>잡기·업기</h3>
+      <ul>
+        <li>상대 말이 있는 칸에 도착하면 💥 <b>잡기</b> — 상대 말은 대기로 돌아가고, 나는 <b>한 번 더</b> 던집니다.</li>
+        <li>내 말이 있는 칸에 도착하면 🐎 <b>업기</b> — 함께 이동하고 함께 완주합니다 (대신 한꺼번에 잡힐 수도!).</li>
+      </ul>
+      <h3>꿀팁</h3>
+      <ul>
+        <li>모서리·중앙에 <b>정확히 멈추는 수</b>를 만들면 지름길로 크게 단축됩니다.</li>
+        <li>업으면 빠르지만 위험도 두 배 — 상대가 도·개로 닿는 자리는 피하세요.</li>
+        <li>출발점에 딱 멈추면(참먹이) 다음엔 어떤 결과로도 완주할 수 있어요.</li>
+      </ul>
+      <h3>이 판의 기능</h3>
+      <ul>
+        <li>좌석 4개 사람/AI 구성, 빽도 켬/끔 — 새 게임부터 적용.</li>
+        <li>이동 전 경로 미리보기, 분기점에선 "지름길/바깥길" 라벨을 클릭해 선택.</li>
+      </ul>
+      <div class="closeRow"><button id="rulesCloseBtn">닫기</button></div>
+    </div>
+  </div>
 
   <div id="overlay">
     <h2 id="overlayTitle"></h2>
@@ -1082,6 +1140,15 @@ document.getElementById('newBtn').addEventListener('click', newGame);
 document.getElementById('throwBtn').addEventListener('click', uiThrow);
 
 newGame();
+
+// ---- 룰 패널 (전 게임 공통 패턴) ----
+(function () {
+  const panel = document.getElementById('rulesPanel');
+  document.getElementById('rulesBtn').addEventListener('click', () => panel.classList.add('show'));
+  document.getElementById('rulesCloseBtn').addEventListener('click', () => panel.classList.remove('show'));
+  panel.addEventListener('click', e => { if (e.target === panel) panel.classList.remove('show'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') panel.classList.remove('show'); });
+})();
 </script>
 </body>
 </html>

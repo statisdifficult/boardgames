@@ -182,6 +182,22 @@
     button, select { padding: 8px 12px; font-size: 13px; }
     .hint { font-size: 11px; }
   }
+  /* ---- 룰 패널 (전 게임 공통 패턴) ---- */
+  #rulesBtn { position: fixed; right: 14px; bottom: 14px; z-index: 40;
+    background: var(--panel); color: var(--text); border: 1px solid rgba(128,128,128,.3);
+    border-radius: 20px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  #rulesBtn:hover { border-color: var(--accent); color: var(--accent); }
+  #rulesPanel { position: fixed; inset: 0; background: rgba(10,12,16,.72);
+    display: none; z-index: 41; align-items: center; justify-content: center; padding: 20px; }
+  #rulesPanel.show { display: flex; }
+  .rulesBox { background: var(--panel); color: var(--text); max-width: 560px; max-height: 80vh;
+    overflow-y: auto; border-radius: 14px; padding: 24px 26px; line-height: 1.7; font-size: 14px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.5); text-align: left; }
+  .rulesBox h2 { color: var(--accent); font-size: 19px; margin-bottom: 10px; }
+  .rulesBox h3 { font-size: 15px; margin: 14px 0 4px; }
+  .rulesBox ul { padding-left: 18px; margin: 4px 0; }
+  .rulesBox li { margin: 3px 0; }
+  .rulesBox .closeRow { text-align: right; margin-top: 14px; }
 </style>
 </head>
 <body>
@@ -232,6 +248,41 @@
     상단(에이스~식스) 합계 63점 이상이면 보너스 +35점.
     관용 룰: 요트(5개 동일)는 풀하우스로도 인정됩니다.</div>
   <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <button id="rulesBtn">📖 룰</button>
+  <div id="rulesPanel">
+    <div class="rulesBox">
+      <h2>📖 요트다이스 규칙</h2>
+      <h3>목표</h3>
+      <ul>
+        <li>주사위 5개로 <b>12라운드 동안 점수표 12개 항목을 모두 채워</b> 총점이 가장 높은 사람이 승리!</li>
+      </ul>
+      <h3>진행</h3>
+      <ul>
+        <li>매 턴 주사위를 <b>최대 3회</b> 굴립니다. 굴림 사이에 주사위를 클릭하면 <b>고정/해제</b>할 수 있어요.</li>
+        <li>굴린 뒤에는 점수표의 빈 항목 한 곳에 <b>반드시 기입</b>해야 합니다 — 조건 미달이면 0점 마킹도 해야 해요.</li>
+        <li>점수표의 회색 숫자는 현재 주사위로 받을 수 있는 점수 미리보기입니다. 클릭하면 기입!</li>
+      </ul>
+      <h3>점수 (12개 항목)</h3>
+      <ul>
+        <li><b>에이스~식스</b>: 해당 눈의 합 (예: 5가 3개면 파이브에 15점).</li>
+        <li><b>상단 보너스</b>: 에이스~식스 합계가 <b>63점 이상이면 +35점</b> (눈당 3개씩 모으는 페이스).</li>
+        <li><b>초이스</b>: 주사위 5개 전체 합.</li>
+        <li><b>포카드</b>: 같은 눈 4개 이상 → 전체 합.</li>
+        <li><b>풀하우스</b>: 3개+2개 → 전체 합. 관용 룰로 <b>요트(5개 동일)도 풀하우스로 인정</b>됩니다.</li>
+        <li><b>스몰 스트레이트</b>: 4연속 눈 → 15점 고정.</li>
+        <li><b>라지 스트레이트</b>: 5연속 눈 → 30점 고정.</li>
+        <li><b>요트</b>: 5개 모두 같은 눈 → 50점.</li>
+      </ul>
+      <h3>이 판의 기능</h3>
+      <ul>
+        <li>1~4인, 각 자리를 사람/AI로 자유롭게 섞을 수 있어요 — 새 게임부터 적용.</li>
+        <li>1인 솔로 모드는 <b>최고 기록이 저장</b>되어 기록 경신에 도전할 수 있습니다.</li>
+        <li>AI는 기댓값 기반으로 고정/기입을 스스로 판단합니다.</li>
+      </ul>
+      <div class="closeRow"><button id="rulesCloseBtn">닫기</button></div>
+    </div>
+  </div>
 
   <div id="overlay">
     <h2 id="overlayTitle"></h2>
@@ -827,6 +878,15 @@ for (let i = 0; i < 4; i++)
 
 syncTypeSels();
 newGame();
+
+// ---- 룰 패널 (전 게임 공통 패턴) ----
+(function () {
+  const panel = document.getElementById('rulesPanel');
+  document.getElementById('rulesBtn').addEventListener('click', () => panel.classList.add('show'));
+  document.getElementById('rulesCloseBtn').addEventListener('click', () => panel.classList.remove('show'));
+  panel.addEventListener('click', e => { if (e.target === panel) panel.classList.remove('show'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') panel.classList.remove('show'); });
+})();
 </script>
 </body>
 </html>

@@ -348,6 +348,22 @@
     #overlay p { font-size: 14px; }
     #overlayBtns { min-width: 0; width: 100%; max-width: 300px; }
   }
+  /* ---- 룰 패널 (전 게임 공통 패턴) ---- */
+  #rulesBtn { position: fixed; right: 14px; bottom: 14px; z-index: 40;
+    background: var(--panel); color: var(--text); border: 1px solid rgba(128,128,128,.3);
+    border-radius: 20px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  #rulesBtn:hover { border-color: var(--accent); color: var(--accent); }
+  #rulesPanel { position: fixed; inset: 0; background: rgba(10,12,16,.72);
+    display: none; z-index: 41; align-items: center; justify-content: center; padding: 20px; }
+  #rulesPanel.show { display: flex; }
+  .rulesBox { background: var(--panel); color: var(--text); max-width: 560px; max-height: 80vh;
+    overflow-y: auto; border-radius: 14px; padding: 24px 26px; line-height: 1.7; font-size: 14px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.5); text-align: left; }
+  .rulesBox h2 { color: var(--accent); font-size: 19px; margin-bottom: 10px; }
+  .rulesBox h3 { font-size: 15px; margin: 14px 0 4px; }
+  .rulesBox ul { padding-left: 18px; margin: 4px 0; }
+  .rulesBox li { margin: 3px 0; }
+  .rulesBox .closeRow { text-align: right; margin-top: 14px; }
 </style>
 </head>
 <body>
@@ -407,6 +423,38 @@
     사이드팟 정확 분배 · 올인 런아웃. 스택이 0이 되면 탈락하며, 혼자 남거나 내가 탈락하면 게임이 끝납니다.
   </div>
   <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <button id="rulesBtn">📖 룰</button>
+  <div id="rulesPanel">
+    <div class="rulesBox">
+      <h2>📖 텍사스 홀덤 규칙</h2>
+      <h3>목표</h3>
+      <ul>
+        <li>내 홀카드 2장 + 공용 카드 5장 중 <b>가장 좋은 5장 조합</b>으로 팟(칩)을 따냅니다.</li>
+        <li>노리밋 토너먼트 — 상대를 전부 탈락시키고 <b>혼자 남으면 우승</b>. 내 스택이 0이 되면 탈락이에요.</li>
+      </ul>
+      <h3>진행</h3>
+      <ul>
+        <li><b>프리플랍</b>: 각자 홀카드 2장. 딜러 버튼 왼쪽 두 명이 SB/BB 강제 베팅 (헤즈업에선 버튼이 SB).</li>
+        <li><b>플랍(3장) → 턴(1장) → 리버(1장)</b> 순으로 공용 카드가 깔리고, 매 단계마다 베팅합니다.</li>
+        <li>액션: 폴드 / 체크 / 콜 / 벳·레이즈 (미니멈 레이즈 = 직전 인상폭 이상, 풀 레이즈만 액션 재오픈).</li>
+        <li>전원 폴드하면 남은 한 명이 즉시 팟 획득(패 비공개). 올인끼리 남으면 패를 공개하고 보드를 끝까지 자동 공개(런아웃).</li>
+        <li>올인 금액이 다르면 <b>사이드팟</b>으로 나눠 각자 낸 만큼만 겨룹니다. 블라인드는 <b>10핸드마다 상승</b> (50/100부터 최대 4,000/8,000까지 10단계).</li>
+      </ul>
+      <h3>족보 (낮음 → 높음)</h3>
+      <ul>
+        <li>하이카드 &lt; 원페어 &lt; 투페어 &lt; 트리플 &lt; 스트레이트 &lt; 플러시 &lt; 풀하우스 &lt; 포카드 &lt; 스트레이트 플러시 (A 하이는 <b>로열 플러시</b>).</li>
+        <li>A-2-3-4-5 백스트레이트도 인정됩니다 (가장 낮은 스트레이트).</li>
+      </ul>
+      <h3>이 판의 기능</h3>
+      <ul>
+        <li>2~6인 (나 + AI 1~5명) · 시작 스택 10,000 · AI 난이도 쉬움/보통/어려움 — 새 게임부터 적용.</li>
+        <li>레이즈는 슬라이더·직접 입력·프리셋(최소/½팟/팟/올인)으로. 언콜드 벳은 자동 반환됩니다.</li>
+        <li>내가 탈락하거나 게임이 끝나면 최종 순위가 표시됩니다.</li>
+      </ul>
+      <div class="closeRow"><button id="rulesCloseBtn">닫기</button></div>
+    </div>
+  </div>
 
   <div id="overlay">
     <h2 id="overlayTitle"></h2>
@@ -1356,6 +1404,15 @@ $id('numSel').addEventListener('change', onSettingChange);
 $id('diffSel').addEventListener('change', onSettingChange);
 
 newGame();
+
+// ---- 룰 패널 (전 게임 공통 패턴) ----
+(function () {
+  const panel = document.getElementById('rulesPanel');
+  document.getElementById('rulesBtn').addEventListener('click', () => panel.classList.add('show'));
+  document.getElementById('rulesCloseBtn').addEventListener('click', () => panel.classList.remove('show'));
+  panel.addEventListener('click', e => { if (e.target === panel) panel.classList.remove('show'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') panel.classList.remove('show'); });
+})();
 </script>
 </body>
 </html>

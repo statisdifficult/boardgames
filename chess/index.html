@@ -179,6 +179,22 @@
     .clock { min-width: 0; flex: 1; font-size: 13px; padding: 5px 8px; }
     .hint { font-size: 11px; }
   }
+  /* ---- 룰 패널 (전 게임 공통 패턴) ---- */
+  #rulesBtn { position: fixed; right: 14px; bottom: 14px; z-index: 40;
+    background: var(--panel); color: var(--text); border: 1px solid rgba(128,128,128,.3);
+    border-radius: 20px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  #rulesBtn:hover { border-color: var(--accent); color: var(--accent); }
+  #rulesPanel { position: fixed; inset: 0; background: rgba(10,12,16,.72);
+    display: none; z-index: 41; align-items: center; justify-content: center; padding: 20px; }
+  #rulesPanel.show { display: flex; }
+  .rulesBox { background: var(--panel); color: var(--text); max-width: 560px; max-height: 80vh;
+    overflow-y: auto; border-radius: 14px; padding: 24px 26px; line-height: 1.7; font-size: 14px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.5); text-align: left; }
+  .rulesBox h2 { color: var(--accent); font-size: 19px; margin-bottom: 10px; }
+  .rulesBox h3 { font-size: 15px; margin: 14px 0 4px; }
+  .rulesBox ul { padding-left: 18px; margin: 4px 0; }
+  .rulesBox li { margin: 3px 0; }
+  .rulesBox .closeRow { text-align: right; margin-top: 14px; }
 </style>
 </head>
 <body>
@@ -235,6 +251,46 @@
   </div>
 
   <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <button id="rulesBtn">📖 룰</button>
+  <div id="rulesPanel">
+    <div class="rulesBox">
+      <h2>📖 체스 규칙</h2>
+      <h3>목표</h3>
+      <ul>
+        <li>상대 킹을 <b>체크메이트</b>(장군인데 피할 곳이 없는 상태)로 만들면 승리. ⚪ 백이 먼저 둡니다.</li>
+        <li>내 킹이 잡히는 자리로 가는 수는 둘 수 없어요.</li>
+      </ul>
+      <h3>기물과 행마</h3>
+      <ul>
+        <li><b>폰 ♙</b>: 앞으로 1칸(첫 이동만 2칸 가능), <b>잡을 때만 대각 앞 1칸</b>.</li>
+        <li><b>나이트 ♘</b>: ㄱ자(직선 2칸+옆 1칸), 유일하게 기물을 뛰어넘어요.</li>
+        <li><b>비숍 ♗</b>: 대각선 자유 / <b>룩 ♖</b>: 가로·세로 자유 / <b>퀸 ♕</b>: 둘 다 자유.</li>
+        <li><b>킹 ♔</b>: 모든 방향 1칸. 공격받는 칸으로는 못 갑니다.</li>
+      </ul>
+      <h3>특수 규칙</h3>
+      <ul>
+        <li><b>캐슬링</b>: 킹·룩 둘 다 안 움직였고, 사이가 비어 있고, 킹의 경로가 공격받지 않을 때 — 킹을 2칸 옆으로 움직이면 룩이 따라옵니다.</li>
+        <li><b>앙파상</b>: 상대 폰이 2칸 전진해 내 폰 옆에 온 <b>직후 한 수</b>에만, 그 폰의 뒤 대각(빈 칸)으로 이동해 잡기.</li>
+        <li><b>승격</b>: 폰이 끝줄에 도달하면 퀸·룩·비숍·나이트 중 선택.</li>
+        <li><b>무승부</b>: 스테일메이트(장군 아닌데 둘 수 없음) · 50수 규칙 · 3회 동형반복 · 기물 부족(죽은 포지션) · 합의 무승부 — 전부 자동 판정됩니다.</li>
+      </ul>
+      <h3>꿀팁</h3>
+      <ul>
+        <li>초반엔 <b>중앙 폰 + 나이트·비숍 전개</b> 후 빠른 캐슬링으로 킹을 안전하게.</li>
+        <li>퀸을 너무 일찍 꺼내면 쫓겨 다니며 수를 낭비하기 쉬워요.</li>
+        <li>기물 교환 전엔 점수 감각으로 비교: 폰1 · 나이트/비숍3 · 룩5 · 퀸9.</li>
+      </ul>
+      <h3>이 판의 기능</h3>
+      <ul>
+        <li>상대: 사람(한 화면) 또는 AI 쉬움/보통/어려움 + 내 색 선택 — 새 대국부터 적용.</li>
+        <li>시간제한(3~20분)·초읽기(음성 카운트) 지원. 시간패 시 상대가 킹 단독이면 무승부 처리.</li>
+        <li>🌐 온라인: 방 코드 공유로 원격 2인 대국 — 시간 무제한, 무르기 없음, 한판 더 가능.</li>
+        <li>무르기 · 기권 · 무승부 제안(사람전) · 보드 회전 지원.</li>
+      </ul>
+      <div class="closeRow"><button id="rulesCloseBtn">닫기</button></div>
+    </div>
+  </div>
 
 <script>
 // ===ENGINE_START===
@@ -1980,6 +2036,15 @@ function updateUI() {
 }
 
 newGame();
+
+// ---- 룰 패널 (전 게임 공통 패턴) ----
+(function () {
+  const panel = document.getElementById('rulesPanel');
+  document.getElementById('rulesBtn').addEventListener('click', () => panel.classList.add('show'));
+  document.getElementById('rulesCloseBtn').addEventListener('click', () => panel.classList.remove('show'));
+  panel.addEventListener('click', e => { if (e.target === panel) panel.classList.remove('show'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') panel.classList.remove('show'); });
+})();
 </script>
 </body>
 </html>

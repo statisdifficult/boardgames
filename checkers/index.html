@@ -133,6 +133,22 @@
     button, select { padding: 8px 12px; font-size: 13px; }
     .hint { font-size: 11px; }
   }
+  /* ---- 룰 패널 (전 게임 공통 패턴) ---- */
+  #rulesBtn { position: fixed; right: 14px; bottom: 14px; z-index: 40;
+    background: var(--panel); color: var(--text); border: 1px solid rgba(128,128,128,.3);
+    border-radius: 20px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  #rulesBtn:hover { border-color: var(--accent); color: var(--accent); }
+  #rulesPanel { position: fixed; inset: 0; background: rgba(10,12,16,.72);
+    display: none; z-index: 41; align-items: center; justify-content: center; padding: 20px; }
+  #rulesPanel.show { display: flex; }
+  .rulesBox { background: var(--panel); color: var(--text); max-width: 560px; max-height: 80vh;
+    overflow-y: auto; border-radius: 14px; padding: 24px 26px; line-height: 1.7; font-size: 14px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.5); text-align: left; }
+  .rulesBox h2 { color: var(--accent); font-size: 19px; margin-bottom: 10px; }
+  .rulesBox h3 { font-size: 15px; margin: 14px 0 4px; }
+  .rulesBox ul { padding-left: 18px; margin: 4px 0; }
+  .rulesBox li { margin: 3px 0; }
+  .rulesBox .closeRow { text-align: right; margin-top: 14px; }
 </style>
 </head>
 <body>
@@ -163,6 +179,42 @@
 
   <div class="hint" id="hintText"></div>
   <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <button id="rulesBtn">📖 룰</button>
+  <div id="rulesPanel">
+    <div class="rulesBox">
+      <h2>📖 체커 규칙</h2>
+      <h3>목표</h3>
+      <ul>
+        <li>상대 말을 <b>전멸</b>시키거나 <b>움직일 수 없게</b>(봉쇄) 만들면 승리. ⚫ 흑이 먼저 둡니다.</li>
+        <li>8×8 판의 <b>어두운 칸만</b> 사용하며, 각자 12개로 시작해요.</li>
+      </ul>
+      <h3>두는 법 (영국식 드래프츠)</h3>
+      <ul>
+        <li>일반 말: <b>전방 대각선 1칸</b> 이동. 잡기도 <b>전방으로만</b> — 인접한 상대 말을 뛰어넘어 빈 칸에 착지.</li>
+        <li>끝줄에 도달하면 👑 <b>킹으로 승격</b> — 앞뒤 대각선 4방향으로 이동·잡기 가능.</li>
+      </ul>
+      <h3>특수 규칙</h3>
+      <ul>
+        <li><b>잡기 강제</b>: 잡을 수 있는 수가 하나라도 있으면 반드시 잡아야 합니다(여러 경로 중 선택은 자유). 잡을 수 있는 말은 금색 링으로 표시돼요.</li>
+        <li><b>연속 점프</b>: 착지 후 또 잡을 수 있으면 <b>같은 말로 끝까지</b> 이어서 잡아야 합니다.</li>
+        <li>잡기로 승격줄에 도달하면 그 즉시 킹이 되고 <b>그 수는 종료</b>(연쇄 불가).</li>
+        <li>잡기·일반 말 전진 없이 80수가 지나면 <b>무승부</b>.</li>
+      </ul>
+      <h3>꿀팁</h3>
+      <ul>
+        <li>잡기가 강제라는 점을 역이용해 <b>일부러 하나 내주고 두 개 잡는</b> 교환을 노리세요.</li>
+        <li>맨 뒷줄 말을 아끼면 상대의 킹 승격을 막을 수 있어요.</li>
+        <li>변 칸의 말은 잡히지 않지만 갈 곳도 줄어듭니다 — 중앙 장악이 대체로 유리해요.</li>
+      </ul>
+      <h3>이 판의 기능</h3>
+      <ul>
+        <li>상대: 사람(한 화면 교대) 또는 AI 쉬움/보통/어려움 — 새 대국부터 적용.</li>
+        <li>AI 상대일 땐 내 말 색 선택 가능(백 선택 시 판이 자동 회전). 무르기·기권 지원.</li>
+      </ul>
+      <div class="closeRow"><button id="rulesCloseBtn">닫기</button></div>
+    </div>
+  </div>
 
   <div id="overlay">
     <h2 id="overlayTitle"></h2>
@@ -911,6 +963,15 @@ function handleAiResponse(mv, token) {
 
 // ==================== 시작 ====================
 newGame();
+
+// ---- 룰 패널 (전 게임 공통 패턴) ----
+(function () {
+  const panel = document.getElementById('rulesPanel');
+  document.getElementById('rulesBtn').addEventListener('click', () => panel.classList.add('show'));
+  document.getElementById('rulesCloseBtn').addEventListener('click', () => panel.classList.remove('show'));
+  panel.addEventListener('click', e => { if (e.target === panel) panel.classList.remove('show'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') panel.classList.remove('show'); });
+})();
 </script>
 </body>
 </html>

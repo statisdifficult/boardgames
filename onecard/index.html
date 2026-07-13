@@ -122,6 +122,22 @@
     button, select { padding:8px 12px; font-size:13px; }
     .hint { font-size:11px; }
   }
+  /* ---- 룰 패널 (전 게임 공통 패턴) ---- */
+  #rulesBtn { position: fixed; right: 14px; bottom: 14px; z-index: 40;
+    background: var(--panel); color: var(--text); border: 1px solid rgba(128,128,128,.3);
+    border-radius: 20px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  #rulesBtn:hover { border-color: var(--accent); color: var(--accent); }
+  #rulesPanel { position: fixed; inset: 0; background: rgba(10,12,16,.72);
+    display: none; z-index: 41; align-items: center; justify-content: center; padding: 20px; }
+  #rulesPanel.show { display: flex; }
+  .rulesBox { background: var(--panel); color: var(--text); max-width: 560px; max-height: 80vh;
+    overflow-y: auto; border-radius: 14px; padding: 24px 26px; line-height: 1.7; font-size: 14px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.5); text-align: left; }
+  .rulesBox h2 { color: var(--accent); font-size: 19px; margin-bottom: 10px; }
+  .rulesBox h3 { font-size: 15px; margin: 14px 0 4px; }
+  .rulesBox ul { padding-left: 18px; margin: 4px 0; }
+  .rulesBox li { margin: 3px 0; }
+  .rulesBox .closeRow { text-align: right; margin-top: 14px; }
 </style>
 </head>
 <body>
@@ -176,6 +192,41 @@
     낼 카드가 없으면 1장 뽑고, 뽑은 카드를 낼 수 있으면 바로 낼지 선택합니다. 손패 1장이 되면 "원카드!"가 자동 표시되고, 손패를 모두 털면 승리.
     덱이 떨어지면 버림더미(맨 위 제외)를 섞어 다시 씁니다.</div>
   <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <button id="rulesBtn">📖 룰</button>
+  <div id="rulesPanel">
+    <div class="rulesBox">
+      <h2>📖 원카드 규칙</h2>
+      <h3>목표</h3>
+      <ul>
+        <li>손패를 <b>가장 먼저 모두 내면 승리</b>! 트럼프 53장(조커 포함), 한국 통용 룰입니다.</li>
+        <li>시작 손패: 2인은 7장, 3~4인은 5장.</li>
+      </ul>
+      <h3>진행</h3>
+      <ul>
+        <li>버림더미 맨 위 카드와 <b>같은 무늬 또는 같은 숫자</b>인 카드를 냅니다. <b>조커는 아무 카드 위에나</b> 낼 수 있어요.</li>
+        <li>낼 카드가 없으면 덱에서 1장 뽑고, 뽑은 카드를 낼 수 있으면 바로 낼지 손에 둘지 선택합니다.</li>
+        <li>덱이 떨어지면 버림더미(맨 위 제외)를 섞어 다시 씁니다. 손패가 1장이 되면 "원카드!"가 자동 표시돼요.</li>
+      </ul>
+      <h3>공격 카드</h3>
+      <ul>
+        <li><b>2 = +2장 · A = +3장 · 🃏 조커 = +5장</b> — 공격은 누적됩니다.</li>
+        <li>되받기(반사)는 <b>같거나 더 높은 위계(2 &lt; A &lt; 조커)</b>의 공격 카드로만 가능하고, 무늬·숫자 일치 규칙도 지켜야 합니다 (조커만 예외).</li>
+        <li>못 받으면(또는 안 받으면) 누적된 장수만큼 먹고 턴이 넘어갑니다.</li>
+      </ul>
+      <h3>특수 카드</h3>
+      <ul>
+        <li><b>7</b> = 무늬 변경 (원하는 무늬 선언) · <b>J</b> = 다음 사람 건너뛰기 · <b>Q</b> = 방향 전환 (생존 2인일 땐 "한 번 더"와 동일) · <b>K</b> = 한 번 더 내기.</li>
+      </ul>
+      <h3>이 판의 기능</h3>
+      <ul>
+        <li>나 + AI 1~3명 (2~4인) — 새 게임부터 적용.</li>
+        <li><b>파산 룰</b>: 손패가 15장을 초과하면 탈락 (켬/끔 선택 가능). 마지막까지 살아남아도 승리!</li>
+        <li>덱·버림더미가 전부 말라 아무도 못 내면 교착 무승부 처리됩니다.</li>
+      </ul>
+      <div class="closeRow"><button id="rulesCloseBtn">닫기</button></div>
+    </div>
+  </div>
 
   <div id="overlay">
     <h2 id="overlayTitle"></h2>
@@ -772,6 +823,15 @@ $id('nSel').addEventListener('change', onSettingChange);
 $id('ruinSel').addEventListener('change', onSettingChange);
 
 newGame();
+
+// ---- 룰 패널 (전 게임 공통 패턴) ----
+(function () {
+  const panel = document.getElementById('rulesPanel');
+  document.getElementById('rulesBtn').addEventListener('click', () => panel.classList.add('show'));
+  document.getElementById('rulesCloseBtn').addEventListener('click', () => panel.classList.remove('show'));
+  panel.addEventListener('click', e => { if (e.target === panel) panel.classList.remove('show'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') panel.classList.remove('show'); });
+})();
 </script>
 </body>
 </html>

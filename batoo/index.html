@@ -209,6 +209,22 @@
   #setup button { margin-top: 14px; width: 240px; }
   a.home { color: var(--muted); font-size: 12px; margin-top: 16px; text-decoration: none; }
   a.home:hover { color: var(--accent); }
+  /* ---- 룰 패널 (전 게임 공통 패턴) ---- */
+  #rulesBtn { position: fixed; right: 14px; bottom: 14px; z-index: 40;
+    background: var(--panel); color: var(--text); border: 1px solid rgba(128,128,128,.3);
+    border-radius: 20px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  #rulesBtn:hover { border-color: var(--accent); color: var(--accent); }
+  #rulesPanel { position: fixed; inset: 0; background: rgba(10,12,16,.72);
+    display: none; z-index: 41; align-items: center; justify-content: center; padding: 20px; }
+  #rulesPanel.show { display: flex; }
+  .rulesBox { background: var(--panel); color: var(--text); max-width: 560px; max-height: 80vh;
+    overflow-y: auto; border-radius: 14px; padding: 24px 26px; line-height: 1.7; font-size: 14px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.5); text-align: left; }
+  .rulesBox h2 { color: var(--accent); font-size: 19px; margin-bottom: 10px; }
+  .rulesBox h3 { font-size: 15px; margin: 14px 0 4px; }
+  .rulesBox ul { padding-left: 18px; margin: 4px 0; }
+  .rulesBox li { margin: 3px 0; }
+  .rulesBox .closeRow { text-align: right; margin-top: 14px; }
 </style>
 </head>
 <body>
@@ -319,6 +335,48 @@
     <button id="setupStartBtn" class="primary">대국 시작</button>
   </div>
 
+
+<button id="rulesBtn">📖 룰</button>
+<div id="rulesPanel">
+  <div class="rulesBox">
+    <h2>📖 바투 규칙 (원작 고증판)</h2>
+    <p style="color:var(--muted);font-size:13px">2009년 서비스 종료된 바둑 변형 게임 <b>바투</b>의 재현입니다. 11×11 판, 중국룰(돌+집) 기반.</p>
+    <h3>진행 순서</h3>
+    <ul>
+      <li><b>① 베이스빌드</b> — 서로 안 보이게 비밀 돌 3개를 배치. 공개 때 같은 자리에 겹치면 서로 상쇄되어 사라집니다.</li>
+      <li><b>② 공개</b> — 베이스와 필드의 포인트(+2/+3/+5, −2/−3/−5)가 동시에 공개됩니다.</li>
+      <li><b>③ 흑번 베팅</b> — 먼저 두는 대가로 낼 집 수를 비밀리에 정수로 베팅. <b>높게 부른 쪽이 흑(선공)</b>이 되고 그 베팅액만큼 백에게 보너스(턴베팅). 동점이면 1회 재베팅, 또 동점이면 그 값 확정 + 선공 무작위.</li>
+      <li><b>④ 본게임</b> — 바둑처럼 교대로 착수 (히든·스캔 사용 가능).</li>
+      <li><b>⑤ 계가</b> — 양쪽 연속 패스 시 죽은 돌 정리 후 점수 계산.</li>
+    </ul>
+    <h3>점수 계산</h3>
+    <ul>
+      <li>내 돌 수 + 내 집 + <b>살아남은 베이스 돌 ×5점</b></li>
+      <li>포인트 자리: 내 돌로 점유하면 그 값(±)을 얻음. 빈 −포인트는 집으로 세지 않음.</li>
+      <li>백은 턴베팅 보너스, 상대가 스캔을 쓰면 +2점.</li>
+      <li><b>동점이면 백(후공) 승</b> — 원작 "무승부 후공승" 규칙.</li>
+    </ul>
+    <h3>히든 & 스캔 (각 1회)</h3>
+    <ul>
+      <li><b>🕶️ 히든</b> — 상대에게 안 보이는 비밀 착수. 돌을 따내면 즉시 공개됩니다.</li>
+      <li>상대 히든 위에 두면 <b>발각</b> — 착수는 무효지만 <b>차례 유지</b>라 다른 곳에 다시 둘 수 있어요 (찍는 쪽이 이득).</li>
+      <li><b>📡 스캔</b> — 상대에게 2점을 주고 3×3 범위의 히든을 확인. 차례는 유지됩니다.</li>
+    </ul>
+    <h3>꿀팁</h3>
+    <ul>
+      <li>베이스는 5점짜리 — 잡히지 않게 지키고, 상대 베이스는 노리세요.</li>
+      <li>히든은 단수 걸린 곳 방어나 끊는 자리에 쓰면 강력해요.</li>
+      <li>베팅을 높게 부르면 선공이지만 그만큼 백에게 점수를 줍니다 — 필드 포인트 배치를 보고 정하세요.</li>
+    </ul>
+    <h3>이 판의 기능</h3>
+    <ul>
+      <li>모드: 로컬 2인(한 화면 교대) / 오프라인 AI / 서버 연결 시 신경망 AI·온라인 대전.</li>
+      <li>필드 3종(기본/스카이/카오스) — 포인트 배치 패턴이 다릅니다.</li>
+      <li>시계(총시간+초읽기), 히든 보기(내 것), 계가 시 죽은 돌 클릭 정리.</li>
+    </ul>
+    <div class="closeRow"><button id="rulesCloseBtn">닫기</button></div>
+  </div>
+</div>
 <script>
 const N = 11;
 const EMPTY = 0, BLACK = 1, WHITE = 2;
@@ -2037,6 +2095,15 @@ function updateUI() {
 }
 
 newGame();
+
+// ---- 룰 패널 (전 게임 공통 패턴) ----
+(function () {
+  const panel = document.getElementById('rulesPanel');
+  document.getElementById('rulesBtn').addEventListener('click', () => panel.classList.add('show'));
+  document.getElementById('rulesCloseBtn').addEventListener('click', () => panel.classList.remove('show'));
+  panel.addEventListener('click', e => { if (e.target === panel) panel.classList.remove('show'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') panel.classList.remove('show'); });
+})();
 </script>
 </body>
 </html>

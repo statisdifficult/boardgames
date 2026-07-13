@@ -133,6 +133,22 @@
     button, select { padding: 8px 12px; font-size: 13px; }
     .hint { font-size: 11px; }
   }
+  /* ---- 룰 패널 (전 게임 공통 패턴) ---- */
+  #rulesBtn { position: fixed; right: 14px; bottom: 14px; z-index: 40;
+    background: var(--panel); color: var(--text); border: 1px solid rgba(128,128,128,.3);
+    border-radius: 20px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  #rulesBtn:hover { border-color: var(--accent); color: var(--accent); }
+  #rulesPanel { position: fixed; inset: 0; background: rgba(10,12,16,.72);
+    display: none; z-index: 41; align-items: center; justify-content: center; padding: 20px; }
+  #rulesPanel.show { display: flex; }
+  .rulesBox { background: var(--panel); color: var(--text); max-width: 560px; max-height: 80vh;
+    overflow-y: auto; border-radius: 14px; padding: 24px 26px; line-height: 1.7; font-size: 14px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.5); text-align: left; }
+  .rulesBox h2 { color: var(--accent); font-size: 19px; margin-bottom: 10px; }
+  .rulesBox h3 { font-size: 15px; margin: 14px 0 4px; }
+  .rulesBox ul { padding-left: 18px; margin: 4px 0; }
+  .rulesBox li { margin: 3px 0; }
+  .rulesBox .closeRow { text-align: right; margin-top: 14px; }
 </style>
 </head>
 <body>
@@ -163,6 +179,37 @@
 
   <div class="hint" id="hintText"></div>
   <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <button id="rulesBtn">📖 룰</button>
+  <div id="rulesPanel">
+    <div class="rulesBox">
+      <h2>📖 사목 규칙</h2>
+      <h3>목표</h3>
+      <ul>
+        <li>가로·세로·대각선으로 <b>내 돌 4개를 먼저 이으면 승리</b>합니다.</li>
+        <li>7×6 판이 가득 찰 때까지 승부가 안 나면 무승부.</li>
+      </ul>
+      <h3>두는 법</h3>
+      <ul>
+        <li>🔴 빨강이 선공. <b>열을 클릭(터치)</b>하면 돌이 그 열의 맨 아래 빈 칸으로 <b>떨어집니다</b> (중력식 — 커넥트포 방식).</li>
+        <li>원하는 칸을 고르는 게 아니라 <b>열만 고를 수 있어요</b> — 이미 쌓인 돌 위에 얹힙니다.</li>
+        <li>가득 찬 열에는 둘 수 없습니다. 호버하면 떨어질 위치가 미리 표시됩니다.</li>
+      </ul>
+      <h3>꿀팁</h3>
+      <ul>
+        <li><b>중앙 열</b>이 4목을 만들 방향이 가장 많아 제일 강력합니다 — 첫 수는 가운데로.</li>
+        <li>상대가 3개를 이으면 <b>즉시 막으세요</b> — 한 수만 늦어도 집니다.</li>
+        <li>두 곳에서 동시에 4목이 되는 <b>이중 위협</b>을 만들면 상대는 한 곳밖에 못 막아요.</li>
+        <li>상대가 이기는 칸 <b>바로 아래에 두지 마세요</b> — 내 돌이 발판이 됩니다.</li>
+      </ul>
+      <h3>이 판의 기능</h3>
+      <ul>
+        <li>상대: 사람(한 화면 교대) 또는 AI 쉬움/보통/어려움 — 새 대국부터 적용.</li>
+        <li>AI 상대일 땐 내 돌(🔴 선공 / 🟡 후공) 선택 가능. 무르기·기권 지원.</li>
+      </ul>
+      <div class="closeRow"><button id="rulesCloseBtn">닫기</button></div>
+    </div>
+  </div>
 
   <div id="overlay">
     <h2 id="overlayTitle"></h2>
@@ -874,6 +921,15 @@ function applyAiMove(col, token) {
 }
 
 newGame();
+
+// ---- 룰 패널 (전 게임 공통 패턴) ----
+(function () {
+  const panel = document.getElementById('rulesPanel');
+  document.getElementById('rulesBtn').addEventListener('click', () => panel.classList.add('show'));
+  document.getElementById('rulesCloseBtn').addEventListener('click', () => panel.classList.remove('show'));
+  panel.addEventListener('click', e => { if (e.target === panel) panel.classList.remove('show'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') panel.classList.remove('show'); });
+})();
 </script>
 </body>
 </html>

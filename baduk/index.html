@@ -177,6 +177,22 @@
     .clock { min-width: 0; flex: 1; font-size: 13px; padding: 5px 8px; }
     .hint { font-size: 11px; }
   }
+  /* ---- 룰 패널 (전 게임 공통 패턴) ---- */
+  #rulesBtn { position: fixed; right: 14px; bottom: 14px; z-index: 40;
+    background: var(--panel); color: var(--text); border: 1px solid rgba(128,128,128,.3);
+    border-radius: 20px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  #rulesBtn:hover { border-color: var(--accent); color: var(--accent); }
+  #rulesPanel { position: fixed; inset: 0; background: rgba(10,12,16,.72);
+    display: none; z-index: 41; align-items: center; justify-content: center; padding: 20px; }
+  #rulesPanel.show { display: flex; }
+  .rulesBox { background: var(--panel); color: var(--text); max-width: 560px; max-height: 80vh;
+    overflow-y: auto; border-radius: 14px; padding: 24px 26px; line-height: 1.7; font-size: 14px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.5); text-align: left; }
+  .rulesBox h2 { color: var(--accent); font-size: 19px; margin-bottom: 10px; }
+  .rulesBox h3 { font-size: 15px; margin: 14px 0 4px; }
+  .rulesBox ul { padding-left: 18px; margin: 4px 0; }
+  .rulesBox li { margin: 3px 0; }
+  .rulesBox .closeRow { text-align: right; margin-top: 14px; }
 </style>
 </head>
 <body>
@@ -227,6 +243,45 @@
   <div class="hint" id="hintText"></div>
 
   <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <button id="rulesBtn">📖 룰</button>
+  <div id="rulesPanel">
+    <div class="rulesBox">
+      <h2>📖 바둑 규칙</h2>
+      <h3>목표</h3>
+      <ul>
+        <li>판 위에 <b>내 영역(집)을 상대보다 많이</b> 확보하면 승리합니다.</li>
+        <li>양쪽이 연속으로 "한 수 쉼"을 하면 계가(점수 계산)로 넘어갑니다.</li>
+      </ul>
+      <h3>두는 법</h3>
+      <ul>
+        <li>⚫ 흑이 먼저, 교차점을 클릭해 번갈아 둡니다.</li>
+        <li>상대 돌(그룹)의 활로(맞닿은 빈 점)를 전부 막으면 <b>따냅니다</b>.</li>
+        <li><b>자살수 금지</b> — 내 돌의 활로가 0이 되는 자리엔 둘 수 없어요 (따내는 경우는 예외).</li>
+        <li><b>동형반복 금지(superko)</b> — 이전과 완전히 같은 판 모양으로 되돌아가는 수는 둘 수 없습니다 (패 포함).</li>
+      </ul>
+      <h3>계가 (점수 계산)</h3>
+      <ul>
+        <li>계가 모드에서 <b>죽은 돌은 돌을, 빅(공배)은 빈 점을 클릭</b>해 표시한 뒤 "계가 확정"을 누르세요.</li>
+        <li><b>중국룰</b>: 살아있는 돌 + 집 = 점수, 백에게 덤 <b>7.5집</b>.</li>
+        <li><b>한국룰</b>: 집 + 사석(따낸 돌·들어낸 죽은 돌) = 점수, 백에게 덤 <b>6.5집</b>.</li>
+        <li>반집 덤이라 무승부가 없습니다. 확정 전에는 "대국 재개"로 계가를 취소할 수 있어요.</li>
+      </ul>
+      <h3>꿀팁</h3>
+      <ul>
+        <li>처음이라면 <b>9×9 판</b>부터 — 한 판이 짧아 감을 잡기 좋아요.</li>
+        <li>초반엔 <b>귀 → 변 → 중앙</b> 순서로 집을 짓는 게 효율적입니다.</li>
+        <li>활로가 1개 남은 돌(단수)은 바로 잡히니, 내 돌의 활로를 항상 살피세요.</li>
+      </ul>
+      <h3>이 판의 기능</h3>
+      <ul>
+        <li>판 크기 9/13/19, 계가 규칙 중국룰(덤 7.5)/한국룰(덤 6.5) — 새 대국부터 적용.</li>
+        <li>시간제한(3~20분)·초읽기(10/30/60초×3)·음성 초읽기(🔊) 지원. 무르기·기권 가능.</li>
+        <li>🌐 온라인: 방 코드 4자리로 2인 대전. 판 크기·룰은 방장 설정, 계가 마킹·확정은 방장이 진행. 시계·무르기는 없고, 종국 후 "한판 더"로 흑백을 바꿔 다시 둡니다.</li>
+      </ul>
+      <div class="closeRow"><button id="rulesCloseBtn">닫기</button></div>
+    </div>
+  </div>
 
   <div id="overlay">
     <div class="ovl-card">
@@ -1368,6 +1423,15 @@ function updateUI() {
 }
 
 newGame();
+
+// ---- 룰 패널 (전 게임 공통 패턴) ----
+(function () {
+  const panel = document.getElementById('rulesPanel');
+  document.getElementById('rulesBtn').addEventListener('click', () => panel.classList.add('show'));
+  document.getElementById('rulesCloseBtn').addEventListener('click', () => panel.classList.remove('show'));
+  panel.addEventListener('click', e => { if (e.target === panel) panel.classList.remove('show'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') panel.classList.remove('show'); });
+})();
 </script>
 </body>
 </html>

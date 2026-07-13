@@ -266,6 +266,22 @@
     #overlay p { font-size: 13px; }
     #overlayBtns { min-width: 0; width: 100%; max-width: 320px; }
   }
+  /* ---- 룰 패널 (전 게임 공통 패턴) ---- */
+  #rulesBtn { position: fixed; right: 14px; bottom: 14px; z-index: 40;
+    background: var(--panel); color: var(--text); border: 1px solid rgba(128,128,128,.3);
+    border-radius: 20px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  #rulesBtn:hover { border-color: var(--accent); color: var(--accent); }
+  #rulesPanel { position: fixed; inset: 0; background: rgba(10,12,16,.72);
+    display: none; z-index: 41; align-items: center; justify-content: center; padding: 20px; }
+  #rulesPanel.show { display: flex; }
+  .rulesBox { background: var(--panel); color: var(--text); max-width: 560px; max-height: 80vh;
+    overflow-y: auto; border-radius: 14px; padding: 24px 26px; line-height: 1.7; font-size: 14px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.5); text-align: left; }
+  .rulesBox h2 { color: var(--accent); font-size: 19px; margin-bottom: 10px; }
+  .rulesBox h3 { font-size: 15px; margin: 14px 0 4px; }
+  .rulesBox ul { padding-left: 18px; margin: 4px 0; }
+  .rulesBox li { margin: 3px 0; }
+  .rulesBox .closeRow { text-align: right; margin-top: 14px; }
 </style>
 </head>
 <body>
@@ -325,6 +341,51 @@
     첫뻑/연뻑 즉시 지급 없음 · 배 깔린 바닥(같은 달 3장+)은 다시 돌림 · 피 강탈은 일반 피 우선(없으면 쌍피).
   </div>
   <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <button id="rulesBtn">📖 룰</button>
+  <div id="rulesPanel">
+    <div class="rulesBox">
+      <h2>📖 맞고 규칙</h2>
+      <h3>목표</h3>
+      <ul>
+        <li>바닥의 패를 먹어 광·열끗·띠·피 점수를 모으고, <b>7점</b>이 되면 고/스톱을 선언할 수 있어요.</li>
+        <li><b>스톱</b>하면 그 점수로 승리 — 배수가 곱해져 최종 점수(돈)가 정산됩니다.</li>
+      </ul>
+      <h3>진행</h3>
+      <ul>
+        <li>각자 10장, 바닥 8장, 더미 20장으로 시작 — <b>선</b>이 먼저 냅니다.</li>
+        <li>내 차례: 손패 1장을 내고 → 더미에서 1장이 자동으로 뒤집힙니다. <b>같은 달</b>끼리 짝이 되면 가져와요.</li>
+        <li>바닥에 같은 달이 2장 있으면 가져올 패를 클릭해서 선택합니다.</li>
+        <li>7점 이상이고 직전보다 점수가 올랐으면 <b>고</b>(계속) 또는 <b>스톱</b>(승리) 선택. 마지막 턴엔 자동 스톱.</li>
+        <li>둘 다 7점 미만으로 패가 소진되면 <b>나가리</b> — 다음 판 점수 ×2로 이월됩니다.</li>
+      </ul>
+      <h3>점수 계산</h3>
+      <ul>
+        <li><b>광</b>: 3광 3점(비광 포함이면 2점) · 4광 4점 · 5광 15점</li>
+        <li><b>열끗</b>: 5장부터 장당 1점 · <b>고도리</b>(2·4·8월 새 열끗 3장) 5점</li>
+        <li><b>띠</b>: 5장부터 장당 1점 · 홍단/청단/초단(각 3장) 각 3점</li>
+        <li><b>피</b>: 10장부터 장당 1점 (쌍피는 피 2장으로 계산)</li>
+      </ul>
+      <h3>특수 규칙</h3>
+      <ul>
+        <li><b>뻑</b>: 낸 패가 바닥과 짝이 됐는데 더미 패까지 같은 달 — 3장이 바닥에 쌓여 못 먹어요. 나중에 4번째 패를 낸 사람이 통째로 먹고 상대 피 1장 (자뻑도 피 1장).</li>
+        <li><b>따닥</b>: 바닥의 같은 달 2장에 내 패를 맞췄는데 더미도 같은 달 — 4장을 모두 먹고 상대 피 1장.</li>
+        <li><b>쪽</b>: 낸 패가 안 맞았는데 더미에서 같은 달이 나옴 — 2장을 먹고 상대 피 1장.</li>
+        <li><b>폭탄</b>: 손의 같은 달 3장 + 바닥 1장을 한 번에 — 4장 획득 + 상대 피 1장 + 점수 ×2 + 폭탄권 2장(손패 없이 더미만 뒤집는 턴).</li>
+        <li><b>흔들기</b>: 같은 달 3장을 들고 선언하고 내면 이번 판 점수 ×2.</li>
+        <li><b>싹쓸이</b>: 내 차례에 바닥을 다 비우면 상대 피 1장.</li>
+        <li><b>총통</b>: 시작 손에 같은 달 4장 — 즉시 10점 승리 또는 계속 진행 선택.</li>
+        <li><b>고 배수</b>: 1고 +1점 · 2고 +2점 · 3고부터 ×2씩(3고 ×2, 4고 ×4…). 고를 부른 뒤 상대가 나면 <b>고박</b> — 상대 점수 ×2.</li>
+        <li><b>피박</b>: 패자 피가 7 미만(승자가 피 점수 있을 때) ×2 · <b>광박</b>: 패자 광 0장(승자가 광 점수 있을 때) ×2 · <b>멍박</b>: 승자 열끗 7장 이상 ×2.</li>
+      </ul>
+      <h3>이 판의 기능</h3>
+      <ul>
+        <li>상대: AI 또는 사람(핫시트) — 새 게임부터 적용. 이긴 사람이 다음 판 선, 누적 점수 기록.</li>
+        <li>단순화: 9월 열끗(국진)은 열끗 고정 · 자뻑도 피 1장 · 첫뻑/연뻑 즉시 지급 없음.</li>
+      </ul>
+      <div class="closeRow"><button id="rulesCloseBtn">닫기</button></div>
+    </div>
+  </div>
 
   <div id="overlay">
     <h2 id="overlayTitle"></h2>
@@ -1344,6 +1405,15 @@ $id('modeSel').addEventListener('change', () => {
 });
 
 newMatch();
+
+// ---- 룰 패널 (전 게임 공통 패턴) ----
+(function () {
+  const panel = document.getElementById('rulesPanel');
+  document.getElementById('rulesBtn').addEventListener('click', () => panel.classList.add('show'));
+  document.getElementById('rulesCloseBtn').addEventListener('click', () => panel.classList.remove('show'));
+  panel.addEventListener('click', e => { if (e.target === panel) panel.classList.remove('show'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') panel.classList.remove('show'); });
+})();
 </script>
 </body>
 </html>
