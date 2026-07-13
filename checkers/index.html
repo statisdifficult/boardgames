@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>체커</title>
+<style>
+  :root {
+    --bg: #1a1d24;
+    --panel: #242832;
+    --text: #e8e6e0;
+    --muted: #9a9788;
+    --accent: #d4a24e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Apple SD Gothic Neo", "Pretendard", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px 16px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  #status {
+    margin: 14px 0 4px;
+    font-size: 16px;
+    font-weight: 600;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+  }
+  #notice {
+    min-height: 20px;
+    font-size: 13px;
+    color: var(--accent);
+    margin-bottom: 8px;
+    text-align: center;
+    max-width: 560px;
+  }
+  .turn-dot {
+    width: 16px; height: 16px; border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 1px 3px rgba(0,0,0,.5);
+    flex-shrink: 0;
+  }
+  .turn-dot.black { background: radial-gradient(circle at 35% 35%, #555, #000); }
+  .turn-dot.white { background: radial-gradient(circle at 35% 35%, #fff, #bbb); }
+  canvas {
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.45);
+    cursor: pointer;
+    touch-action: manipulation;
+    max-width: 100%;
+    height: auto;      /* 모바일: max-width 축소 시 가로세로 비율 유지 */
+    display: block;
+  }
+  .bar {
+    display: flex;
+    gap: 20px;
+    margin-top: 14px;
+    background: var(--panel);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .bar b { color: var(--accent); }
+  .controls { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; justify-content: center; align-items: center; }
+  button {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background .15s;
+  }
+  button:hover { background: #2f3442; }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent); color: #1a1d24; border-color: var(--accent); font-weight: 700; }
+  button.primary:hover:not(:disabled) { background: #e0b160; }
+  select {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 10px; max-width: 560px; text-align: center; line-height: 1.6; }
+  a.home { color: var(--muted); font-size: 12px; margin-top: 16px; text-decoration: none; }
+  a.home:hover { color: var(--accent); }
+  #overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,17,22,.97);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    text-align: center;
+    padding: 24px;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 22px; margin-bottom: 12px; }
+  #overlay p { color: var(--muted); font-size: 15px; line-height: 1.7; max-width: 440px; white-space: pre-line; }
+  #overlayBtns { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; min-width: 280px; }
+  @media (max-width: 600px) {
+    body { padding: 12px 8px; }
+    h1 { font-size: 18px; }
+    .sub { font-size: 12px; }
+    #status { font-size: 14px; }
+    #notice { font-size: 12px; }
+    .bar { gap: 10px; padding: 8px 12px; font-size: 12px; }
+    .controls { gap: 6px; }
+    button, select { padding: 8px 12px; font-size: 13px; }
+    .hint { font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+  <h1>체커 <span>Checkers</span></h1>
+  <div class="sub">8×8 영국식 드래프츠 · 로컬 2인 / AI 대전(3단계) · 잡기 강제 · 연속 점프 · 킹 승격</div>
+
+  <div id="status"></div>
+  <div id="notice"></div>
+  <canvas id="board"></canvas>
+
+  <div class="bar" id="infoBar"></div>
+
+  <div class="controls">
+    <button id="undoBtn">무르기</button>
+    <button id="resignBtn">🏳️ 기권</button>
+    <select id="oppSel" title="새 대국부터 적용">
+      <option value="human">상대: 사람</option>
+      <option value="easy">AI 쉬움</option>
+      <option value="normal">AI 보통</option>
+      <option value="hard">AI 어려움</option>
+    </select>
+    <select id="mySideSel" title="새 대국부터 적용" style="display:none">
+      <option value="1">내 말: ⚫ 흑 (선공)</option>
+      <option value="2">내 말: ⚪ 백</option>
+    </select>
+    <button id="newBtn">새 대국</button>
+  </div>
+
+  <div class="hint" id="hintText"></div>
+  <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <div id="overlay">
+    <h2 id="overlayTitle"></h2>
+    <p id="overlayDesc"></p>
+    <div id="overlayBtns"></div>
+  </div>
+
+<script>
+// ==================== 체커 규칙 (순수 함수 모듈) ====================
+// DOM/전역 무의존 — Web Worker(AI)·JXA 테스트·온라인 서버 권위 검증에서
+// 마커 사이를 그대로 추출해 재사용한다. 규칙 수정은 반드시 이 모듈 한 곳에서만.
+/* __CHECKERS_RULES_START__ */
+function checkersRulesModule() {
+  'use strict';
+  var N = 8, EMPTY = 0, BLACK = 1, WHITE = 2;
+  // 말 인코딩: 1=흑 일반, 2=백 일반, 3=흑 킹, 4=백 킹
+  var NO_PROGRESS_LIMIT = 80;   // 잡기·일반 말 이동 없이 80수(양측 합산) → 무승부
+
+  function colorOf(p) { return p === 0 ? 0 : ((p - 1) & 1) + 1; }
+  function isKing(p) { return p >= 3; }
+  function inB(r, c) { return r >= 0 && r < N && c >= 0 && c < N; }
+  function isDark(r, c) { return (r + c) % 2 === 1; }
+
+  // 초기 배치: 어두운 칸에만. 백 = 위 3줄(행 0–2, 아래로 전진), 흑 = 아래 3줄(행 5–7, 위로 전진). 흑 선공.
+  function initialBoard() {
+    var b = new Int8Array(N * N), r, c;
+    for (r = 0; r < N; r++) for (c = 0; c < N; c++) {
+      if (!isDark(r, c)) continue;
+      if (r < 3) b[r * N + c] = WHITE;
+      else if (r > 4) b[r * N + c] = BLACK;
+    }
+    return b;
+  }
+
+  // 이동 방향: 일반 말은 전방 대각 2방향(영국식 — 잡기도 전방만), 킹은 4방향
+  function dirsOf(p) {
+    if (isKing(p)) return [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+    return colorOf(p) === BLACK ? [[-1, -1], [-1, 1]] : [[1, -1], [1, 1]];
+  }
+
+  // idx 말의 잡기 수 목록: 인접 대각의 상대 말을 뛰어넘어 빈 칸에 착지
+  function capturesFrom(b, idx) {
+    var p = b[idx];
+    if (!p) return [];
+    var r = (idx / N) | 0, c = idx % N, me = colorOf(p), ds = dirsOf(p), out = [], i;
+    for (i = 0; i < ds.length; i++) {
+      var tr = r + 2 * ds[i][0], tc = c + 2 * ds[i][1];
+      if (!inB(tr, tc)) continue;
+      var mid = (r + ds[i][0]) * N + (c + ds[i][1]), to = tr * N + tc;
+      if (b[to] === EMPTY && b[mid] !== EMPTY && colorOf(b[mid]) !== me)
+        out.push({ from: idx, to: to, cap: mid });
+    }
+    return out;
+  }
+
+  // idx 말의 일반 이동(대각 1칸, cap = -1)
+  function stepsFrom(b, idx) {
+    var p = b[idx];
+    if (!p) return [];
+    var r = (idx / N) | 0, c = idx % N, ds = dirsOf(p), out = [], i;
+    for (i = 0; i < ds.length; i++) {
+      var tr = r + ds[i][0], tc = c + ds[i][1];
+      if (inB(tr, tc) && b[tr * N + tc] === EMPTY) out.push({ from: idx, to: tr * N + tc, cap: -1 });
+    }
+    return out;
+  }
+
+  function sideCaptureExists(b, color) {
+    for (var i = 0; i < N * N; i++)
+      if (b[i] && colorOf(b[i]) === color && capturesFrom(b, i).length) return true;
+    return false;
+  }
+
+  // 전체 합법수. forced >= 0 이면 연속 점프 중 — 그 말의 잡기만.
+  // 잡기 강제: 잡을 수 있는 수가 하나라도 있으면 잡기만 합법(여러 잡기 경로 중 선택은 자유).
+  function allMoves(b, color, forced) {
+    if (forced >= 0) return capturesFrom(b, forced);
+    var caps = [], steps = [], i, j, ms;
+    for (i = 0; i < N * N; i++) {
+      if (!b[i] || colorOf(b[i]) !== color) continue;
+      ms = capturesFrom(b, i);
+      for (j = 0; j < ms.length; j++) caps.push(ms[j]);
+      if (caps.length === 0) {
+        ms = stepsFrom(b, i);
+        for (j = 0; j < ms.length; j++) steps.push(ms[j]);
+      }
+    }
+    return caps.length ? caps : steps;
+  }
+
+  // 개별 말이 지금 둘 수 있는 수 (UI 표시용) — 잡기 강제·연쇄 제한 반영
+  function movesForPiece(b, idx, color, forced) {
+    if (forced >= 0) return forced === idx ? capturesFrom(b, idx) : [];
+    if (!b[idx] || colorOf(b[idx]) !== color) return [];
+    if (sideCaptureExists(b, color)) return capturesFrom(b, idx);
+    return stepsFrom(b, idx);
+  }
+
+  // 수 적용(제자리 변경). 반환값으로 되돌리기·연쇄 여부 판단.
+  // 영국식: 잡기로 승격줄 도달 시 즉시 킹 승격 + 그 수 종료(연쇄 불가).
+  function applyMove(b, mv) {
+    var p = b[mv.from], me = colorOf(p);
+    var capPiece = mv.cap >= 0 ? b[mv.cap] : 0;
+    b[mv.from] = EMPTY;
+    if (mv.cap >= 0) b[mv.cap] = EMPTY;
+    var toRow = (mv.to / N) | 0;
+    var promoted = !isKing(p) && (me === BLACK ? toRow === 0 : toRow === N - 1);
+    var placed = promoted ? p + 2 : p;
+    b[mv.to] = placed;
+    var chain = mv.cap >= 0 && !promoted && capturesFrom(b, mv.to).length > 0;
+    return { piece: p, placed: placed, capPiece: capPiece, promoted: promoted, chain: chain, captured: mv.cap >= 0 };
+  }
+
+  function undoMove(b, mv, info) {
+    b[mv.to] = EMPTY;
+    b[mv.from] = info.piece;
+    if (mv.cap >= 0) b[mv.cap] = info.capPiece;
+  }
+
+  // 한 수 적용 후 다음 차례 상태 — 연쇄면 같은 편이 같은 말로 계속
+  function nextTurnState(turn, mv, info) {
+    return info.chain ? { turn: turn, forced: mv.to } : { turn: 3 - turn, forced: -1 };
+  }
+
+  function countPieces(b, color) {
+    var n = 0;
+    for (var i = 0; i < N * N; i++) if (b[i] && colorOf(b[i]) === color) n++;
+    return n;
+  }
+
+  function hasAnyMove(b, color) { return allMoves(b, color, -1).length > 0; }
+
+  // 종국 판정: 둘 수 없으면(말 전멸 포함) 상대 승. 0 = 진행 중
+  function gameResult(b, turn, forced) {
+    return allMoves(b, turn, forced).length === 0 ? 3 - turn : 0;
+  }
+
+  // 무진행 카운터(무승부용): 잡기 또는 일반 말 이동이면 0으로 리셋, 킹 단순 이동만 누적
+  function nextNoProgress(prev, info) {
+    return (info.captured || !isKing(info.piece)) ? 0 : prev + 1;
+  }
+
+  return {
+    N: N, EMPTY: EMPTY, BLACK: BLACK, WHITE: WHITE, NO_PROGRESS_LIMIT: NO_PROGRESS_LIMIT,
+    colorOf: colorOf, isKing: isKing, isDark: isDark, initialBoard: initialBoard,
+    capturesFrom: capturesFrom, stepsFrom: stepsFrom, sideCaptureExists: sideCaptureExists,
+    allMoves: allMoves, movesForPiece: movesForPiece, applyMove: applyMove, undoMove: undoMove,
+    nextTurnState: nextTurnState, countPieces: countPieces, hasAnyMove: hasAnyMove,
+    gameResult: gameResult, nextNoProgress: nextNoProgress,
+  };
+}
+/* __CHECKERS_RULES_END__ */
+
+// ==================== AI 엔진 (순수 모듈 — Worker/메인/테스트 겸용) ====================
+// 알파베타 + 반복 심화(어려움). 평가 = 말 수(킹 1.5배) + 전진도 + 중앙 지배.
+// 강제 잡기·연쇄 점프는 규칙 모듈을 그대로 사용하므로 항상 준수된다.
+/* __CHECKERS_ENGINE_START__ */
+function checkersEngineModule() {
+  'use strict';
+  var R = checkersRulesModule();
+  var WIN = 1e6;
+  var deadline = 0, aborted = false;
+
+  // 중앙 지배 테이블: 변에서 멀수록 가치 상승 (0=구석 … 6=중앙)
+  var CENTER = (function () {
+    var t = new Float64Array(64), r, c;
+    for (r = 0; r < 8; r++) for (c = 0; c < 8; c++)
+      t[r * 8 + c] = Math.min(r, 7 - r) + Math.min(c, 7 - c);
+    return t;
+  })();
+
+  // 리프 평가 (me = 두는 쪽 관점): 일반 말 100, 킹 150(=1.5배) + 전진도 + 중앙
+  function evaluate(b, me) {
+    var s = 0, i, p, color, r, v;
+    for (i = 0; i < 64; i++) {
+      p = b[i];
+      if (!p) continue;
+      color = R.colorOf(p);
+      r = (i / 8) | 0;
+      if (R.isKing(p)) v = 150 + CENTER[i] * 2;
+      else v = 100 + (color === R.BLACK ? 7 - r : r) * 4 + CENTER[i] * 1.5;   // 전진도: 승격줄에 가까울수록
+      s += color === me ? v : -v;
+    }
+    return s;
+  }
+
+  // 네가맥스 + 알파베타. 연쇄 점프는 같은 편이 이어서 두므로 부호를 뒤집지 않는다.
+  // depth<=0이라도 잡기 국면이면 연쇄가 끝날 때까지 확장(정지 탐색) — 말 수가 줄므로 항상 종료.
+  function search(b, turn, forced, depth, alpha, beta) {
+    if (aborted || (deadline && Date.now() > deadline)) { aborted = true; return 0; }
+    var mvs = R.allMoves(b, turn, forced);
+    if (mvs.length === 0) return -(WIN + depth);       // 둘 수 없음 = 패배 (빠른 승리 선호)
+    if (depth <= 0 && mvs[0].cap < 0) return evaluate(b, turn);
+    var best = -Infinity, i, v, info;
+    for (i = 0; i < mvs.length; i++) {
+      info = R.applyMove(b, mvs[i]);
+      if (info.chain) v = search(b, turn, mvs[i].to, depth - 1, alpha, beta);
+      else v = -search(b, 3 - turn, -1, depth - 1, -beta, -alpha);
+      R.undoMove(b, mvs[i], info);
+      if (aborted) break;
+      if (v > best) best = v;
+      if (v > alpha) alpha = v;
+      if (alpha >= beta) break;
+    }
+    return best === -Infinity ? 0 : best;
+  }
+
+  // 루트 1회 탐색 — 시간 초과로 중단돼도 완료된 후보까지의 최선 반환. order = 이전 반복의 수순.
+  function searchRoot(b, turn, forced, depth, mvs, order) {
+    var scores = new Array(mvs.length), k, i, v, info;
+    for (k = 0; k < mvs.length; k++) scores[k] = -Infinity;
+    var alpha = -Infinity, bestI = order ? order[0] : 0;
+    for (k = 0; k < mvs.length; k++) {
+      i = order ? order[k] : k;
+      info = R.applyMove(b, mvs[i]);
+      if (info.chain) v = search(b, turn, mvs[i].to, depth - 1, alpha, Infinity);
+      else v = -search(b, 3 - turn, -1, depth - 1, -Infinity, -alpha);
+      R.undoMove(b, mvs[i], info);
+      if (aborted) break;
+      scores[i] = v;
+      if (v > alpha) { alpha = v; bestI = i; }
+    }
+    return { bestI: bestI, bestV: alpha, scores: scores };
+  }
+
+  function sortedOrder(scores) {
+    var idxs = [], j;
+    for (j = 0; j < scores.length; j++) idxs.push(j);
+    idxs.sort(function (a, b2) { return scores[b2] - scores[a]; });
+    return idxs;
+  }
+
+  // 메인 진입점. forced = 연쇄 점프 중인 말 위치(없으면 -1). opts.timeMs로 시간 예산 재정의(테스트용).
+  // 반환: {from, to, cap} — 항상 allMoves의 원소(강제 잡기·연쇄 완주 자동 준수). 둘 수 없으면 null.
+  function findBestMove(boardIn, turn, forced, level, opts) {
+    aborted = false;
+    deadline = 0;
+    var b = new Int8Array(64), i;
+    for (i = 0; i < 64; i++) b[i] = boardIn[i];
+    var mvs = R.allMoves(b, turn, forced);
+    if (mvs.length === 0) return null;
+    if (mvs.length === 1) return mvs[0];               // 유일수(강제 잡기 등)는 즉답
+
+    // 쉬움: 2수 탐색 후 상위 3개 가중 랜덤
+    if (level === 'easy') {
+      deadline = Date.now() + ((opts && opts.timeMs) || 300);
+      var r0 = searchRoot(b, turn, forced, 2, mvs, null);
+      var top = sortedOrder(r0.scores).slice(0, 3), W = [5, 3, 2], tot = 0, j;
+      for (j = 0; j < top.length; j++) tot += W[j];
+      var rnd = Math.random() * tot;
+      for (j = 0; j < top.length; j++) { rnd -= W[j]; if (rnd <= 0) return mvs[top[j]]; }
+      return mvs[top[0]];
+    }
+
+    var budget = (opts && opts.timeMs) || (level === 'hard' ? 1500 : 600);
+    deadline = Date.now() + budget;
+    var best = mvs[0], order = null, res, d;
+    if (level === 'normal') {
+      res = searchRoot(b, turn, forced, 6, mvs, null);   // 고정 깊이 6 (시간 상한만)
+      best = mvs[res.bestI];
+    } else {
+      // 어려움: 반복 심화 2 → 4 → 6 → … (~1.5초 예산)
+      for (d = 2; d <= 40; d += 2) {
+        res = searchRoot(b, turn, forced, d, mvs, order);
+        if (aborted) { if (d === 2) best = mvs[res.bestI]; break; }
+        best = mvs[res.bestI];
+        if (res.bestV >= WIN) break;                     // 필승 확정
+        order = sortedOrder(res.scores);                 // 다음 반복의 수순 개선
+      }
+    }
+    deadline = 0;
+    return best;
+  }
+
+  return { findBestMove: findBestMove, evaluate: evaluate };
+}
+/* __CHECKERS_ENGINE_END__ */
+
+// ==================== 게임 상태 ====================
+const R = checkersRulesModule();
+const N = 8, EMPTY = 0, BLACK = 1, WHITE = 2;
+
+let board, turn, forcedIdx, winner, winReason, resigned;
+let history;                // [{mv, info, turnBefore, forcedBefore, noProgressBefore}] — 점프 연쇄는 세그먼트별
+let noProgress;             // 무진행 수 카운터 (규칙 모듈 nextNoProgress와 동기)
+let selected;               // 선택된 말의 보드 idx (-1 = 없음)
+
+// ---- AI 대전 상태 ----
+let opponent = 'human';     // 'human' | 'easy' | 'normal' | 'hard'
+let mySide = BLACK;
+let aiColor = WHITE;
+let aiThinking = false;
+let aiMoveToken = 0;        // 새 대국/기권으로 무효화된 늦은 응답 무시용
+let aiThinkStart = 0;
+
+function newGame() {
+  board = R.initialBoard();
+  turn = BLACK;
+  forcedIdx = -1;
+  winner = 0;
+  winReason = '';
+  resigned = false;
+  history = [];
+  noProgress = 0;
+  selected = -1;
+  opponent = document.getElementById('oppSel').value;
+  mySide = parseInt(document.getElementById('mySideSel').value, 10);
+  aiColor = 3 - mySide;
+  aiThinking = false;
+  aiMoveToken++;              // 진행 중이던 AI 계산 응답 무효화
+  hideOverlay();
+  setNotice('');
+  updateUI();
+  draw();
+  maybeTriggerAI();           // AI가 흑(선)이면 첫 수 착수
+}
+
+function setNotice(msg) { document.getElementById('notice').textContent = msg || ''; }
+
+// ---- 착수 ----
+function playMove(mv) {
+  const info = R.applyMove(board, mv);
+  history.push({ mv, info, turnBefore: turn, forcedBefore: forcedIdx, noProgressBefore: noProgress });
+  noProgress = R.nextNoProgress(noProgress, info);
+  const ns = R.nextTurnState(turn, mv, info);
+  turn = ns.turn;
+  forcedIdx = ns.forced;
+  selected = forcedIdx >= 0 ? forcedIdx : -1;   // 연쇄 중엔 그 말이 계속 선택 상태
+
+  if (forcedIdx >= 0) {
+    setNotice(isAiGame() && turn === aiColor ? '⚡ AI 연속 점프 중…' : '⚡ 연속 점프! 같은 말로 계속 잡아야 합니다.');
+  } else {
+    setNotice(info.promoted ? '👑 킹 승격! 이제 앞뒤로 움직일 수 있습니다.' : '');
+  }
+
+  // 종국 판정: 이동 불가(전멸 포함) → 상대 승 / 무진행 80수 → 무승부
+  const res = R.gameResult(board, turn, forcedIdx);
+  if (res) {
+    winner = res;
+    winReason = R.countPieces(board, 3 - res) === 0 ? '전멸' : '봉쇄';
+    selected = -1;
+  } else if (noProgress >= R.NO_PROGRESS_LIMIT) {
+    winner = -1;
+    winReason = '무진행';
+    selected = -1;
+  }
+  updateUI();
+  draw();
+  if (winner) showResultOverlay();
+  else maybeTriggerAI();
+}
+
+// ---- 무르기 ----
+function undoSegment() {
+  const h = history.pop();
+  R.undoMove(board, h.mv, h.info);
+  turn = h.turnBefore;
+  forcedIdx = h.forcedBefore;
+  noProgress = h.noProgressBefore;
+  winner = 0;
+  winReason = '';
+}
+
+// 완전한 한 수(연쇄 점프 전체) 되돌리기 — 연쇄 첫 세그먼트(forcedBefore=-1)까지 pop
+function undoTurn() {
+  do { undoSegment(); } while (history.length && forcedIdx >= 0);
+}
+
+function undo() {
+  if (aiThinking) { setNotice('AI가 생각하는 중에는 무를 수 없습니다.'); return; }
+  if (winner && resigned) {   // 기권 취소
+    winner = 0; winReason = ''; resigned = false;
+    hideOverlay(); setNotice(''); updateUI(); draw(); maybeTriggerAI();
+    return;
+  }
+  if (history.length === 0) { setNotice('되돌릴 수가 없습니다.'); return; }
+  if (isAiGame()) {
+    if (!history.some(h => h.turnBefore === mySide)) { setNotice('되돌릴 내 수가 없습니다.'); return; }
+    if (!winner && turn === aiColor) { setNotice('AI 차례에는 무를 수 없습니다.'); return; }
+    // 사람 차례로 돌아올 때까지 최대 2턴(AI 수 + 내 수) 되돌림 — 내 연쇄 중이면 그 수만
+    undoTurn();
+    if (history.length && turn !== mySide) undoTurn();
+  } else {
+    undoTurn();
+  }
+  selected = -1;
+  hideOverlay();
+  setNotice('');
+  updateUI();
+  draw();
+}
+
+function resign() {
+  if (winner) return;
+  winner = isAiGame() ? aiColor : 3 - turn;   // AI 모드에서 기권은 항상 사람의 기권
+  resigned = true;
+  winReason = '기권';
+  aiThinking = false;
+  aiMoveToken++;
+  selected = -1;
+  updateUI();
+  draw();
+  showResultOverlay();
+}
+
+// ---- 오버레이 ----
+function showOverlay(title, desc, buttons) {
+  document.getElementById('overlayTitle').textContent = title;
+  document.getElementById('overlayDesc').textContent = desc;
+  const wrap = document.getElementById('overlayBtns');
+  wrap.innerHTML = '';
+  buttons.forEach(([label, cb], i) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    if (i === 0) b.className = 'primary';
+    b.addEventListener('click', cb);
+    wrap.appendChild(b);
+  });
+  document.getElementById('overlay').classList.add('show');
+}
+function hideOverlay() { document.getElementById('overlay').classList.remove('show'); }
+
+function showResultOverlay() {
+  let title, desc;
+  if (winner === -1) {
+    title = '🤝 무승부';
+    desc = `${R.NO_PROGRESS_LIMIT}수 동안 잡기·일반 말 전진이 없어 무승부입니다.`;
+  } else {
+    title = `🏆 ${winner === BLACK ? '⚫' : '⚪'} ${playerLabel(winner)} 승리!`;
+    desc = winReason === '전멸' ? '상대 말을 모두 잡았습니다.'
+      : winReason === '봉쇄' ? '상대가 움직일 수 있는 수가 없습니다.'
+      : '기권으로 종료되었습니다.';
+  }
+  showOverlay(title, desc, [
+    ['새 대국', newGame],
+    ['판 보기', hideOverlay],
+  ]);
+}
+
+// ==================== 렌더링 ====================
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+const SIZE = 560, CELL = SIZE / N;
+const dpr = window.devicePixelRatio || 1;
+canvas.width = SIZE * dpr;
+canvas.height = SIZE * dpr;
+canvas.style.width = SIZE + 'px';
+// height는 CSS의 height:auto가 비율 유지 — 인라인 고정값을 주면 모바일에서 찌그러짐
+ctx.scale(dpr, dpr);
+
+// AI 모드에서 내가 백이면 판을 180° 뒤집어 내 말이 아래로 오게
+function viewFlip() { return isAiGame() && mySide === WHITE; }
+function cellXY(idx) {
+  const d = viewFlip() ? 63 - idx : idx;
+  return [(d % N) * CELL, ((d / N) | 0) * CELL];
+}
+
+function draw() {
+  // 칸 (다크/라이트 패턴은 180° 뒤집기에 불변)
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+    ctx.fillStyle = (r + c) % 2 ? '#8f5a2a' : '#e4c98f';
+    ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+  }
+
+  // 마지막 수 칸 강조
+  if (history.length) {
+    const h = history[history.length - 1];
+    ctx.fillStyle = 'rgba(79,195,247,.25)';
+    for (const i of [h.mv.from, h.mv.to]) {
+      const [x, y] = cellXY(i);
+      ctx.fillRect(x, y, CELL, CELL);
+    }
+  }
+
+  // 선택 칸 강조
+  if (selected >= 0 && !winner) {
+    const [x, y] = cellXY(selected);
+    ctx.fillStyle = 'rgba(212,162,78,.30)';
+    ctx.fillRect(x, y, CELL, CELL);
+  }
+
+  // 말
+  for (let i = 0; i < 64; i++) if (board[i]) drawPiece(i, board[i]);
+
+  const humanInput = !winner && !aiInputLocked();
+
+  // 잡기 강제 안내: 선택 전(비연쇄)이라면 잡을 수 있는 말들에 금색 링
+  if (humanInput && forcedIdx < 0 && R.sideCaptureExists(board, turn)) {
+    ctx.strokeStyle = 'rgba(212,162,78,.95)';
+    ctx.lineWidth = 2.5;
+    for (let i = 0; i < 64; i++) {
+      if (!board[i] || R.colorOf(board[i]) !== turn) continue;
+      if (!R.capturesFrom(board, i).length) continue;
+      const [x, y] = cellXY(i);
+      ctx.beginPath();
+      ctx.arc(x + CELL / 2, y + CELL / 2, CELL * 0.43, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // 연쇄 점프 중인 말 강조 (하늘색 링)
+  if (forcedIdx >= 0 && !winner) {
+    const [x, y] = cellXY(forcedIdx);
+    ctx.strokeStyle = '#4fc3f7';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x + CELL / 2, y + CELL / 2, CELL * 0.45, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // 이동 가능 칸 표시 + 잡히는 말 ✕ (잡기 강제 시 잡기만 표시됨 — movesForPiece가 보장)
+  if (selected >= 0 && humanInput) {
+    for (const m of R.movesForPiece(board, selected, turn, forcedIdx)) {
+      const [x, y] = cellXY(m.to);
+      ctx.fillStyle = m.cap >= 0 ? 'rgba(230,90,80,.9)' : 'rgba(96,200,120,.9)';
+      ctx.beginPath();
+      ctx.arc(x + CELL / 2, y + CELL / 2, CELL * 0.14, 0, Math.PI * 2);
+      ctx.fill();
+      if (m.cap >= 0) {
+        const [vx, vy] = cellXY(m.cap);
+        const cx = vx + CELL / 2, cy = vy + CELL / 2, d = CELL * 0.16;
+        ctx.strokeStyle = 'rgba(230,60,50,.95)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(cx - d, cy - d); ctx.lineTo(cx + d, cy + d);
+        ctx.moveTo(cx + d, cy - d); ctx.lineTo(cx - d, cy + d);
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+function drawPiece(idx, p) {
+  const [x, y] = cellXY(idx);
+  const cx = x + CELL / 2, cy = y + CELL / 2, r = CELL * 0.36;
+  const black = R.colorOf(p) === BLACK;
+  const g = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.35, r * 0.15, cx, cy, r);
+  if (black) { g.addColorStop(0, '#5c5c5c'); g.addColorStop(1, '#0d0d0d'); }
+  else { g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#c2c2c2'); }
+  ctx.save();
+  ctx.fillStyle = g;
+  ctx.shadowColor = 'rgba(0,0,0,.45)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  // 안쪽 홈 링 (체커 말 질감)
+  ctx.strokeStyle = black ? 'rgba(255,255,255,.20)' : 'rgba(0,0,0,.18)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.68, 0, Math.PI * 2);
+  ctx.stroke();
+  if (R.isKing(p)) drawCrown(cx, cy, r);
+}
+
+// 킹 왕관 (금색 3봉 왕관)
+function drawCrown(cx, cy, r) {
+  const s = r * 0.6;
+  ctx.save();
+  ctx.fillStyle = '#d4a24e';
+  ctx.strokeStyle = 'rgba(60,40,0,.6)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - s, cy + s * 0.55);
+  ctx.lineTo(cx - s, cy - s * 0.2);
+  ctx.lineTo(cx - s * 0.45, cy + s * 0.05);
+  ctx.lineTo(cx, cy - s * 0.6);
+  ctx.lineTo(cx + s * 0.45, cy + s * 0.05);
+  ctx.lineTo(cx + s, cy - s * 0.2);
+  ctx.lineTo(cx + s, cy + s * 0.55);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function eventToIdx(e) {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (SIZE / rect.width);
+  const y = (e.clientY - rect.top) * (SIZE / rect.height);
+  const c = Math.floor(x / CELL), r = Math.floor(y / CELL);
+  if (r < 0 || r >= N || c < 0 || c >= N) return -1;
+  const di = r * N + c;
+  return viewFlip() ? 63 - di : di;
+}
+
+canvas.addEventListener('click', e => {
+  if (winner || aiInputLocked()) return;
+  const idx = eventToIdx(e);
+  if (idx < 0) return;
+  const p = board[idx];
+
+  // 내 말 클릭 → 선택 (연쇄 중엔 점프하던 말만)
+  if (p && R.colorOf(p) === turn) {
+    if (forcedIdx >= 0 && idx !== forcedIdx) {
+      setNotice('⚡ 연속 점프 중 — 점프하던 말로만 계속 잡을 수 있습니다.');
+      return;
+    }
+    selected = idx;
+    const ms = R.movesForPiece(board, idx, turn, forcedIdx);
+    if (ms.length === 0) {
+      setNotice(R.sideCaptureExists(board, turn)
+        ? '⚠️ 잡을 수 있으면 반드시 잡아야 합니다 — 금색 링이 있는 말을 선택하세요.'
+        : '이 말은 지금 움직일 수 없습니다.');
+    } else {
+      setNotice(forcedIdx >= 0 ? '⚡ 연속 점프! 같은 말로 계속 잡아야 합니다.' : '');
+    }
+    draw();
+    return;
+  }
+
+  // 빈 칸/상대 말 클릭 → 선택된 말의 목적지면 착수
+  if (selected >= 0) {
+    const mv = R.movesForPiece(board, selected, turn, forcedIdx).find(m => m.to === idx);
+    if (mv) { playMove(mv); return; }
+  }
+  if (forcedIdx < 0) { selected = -1; draw(); }
+});
+
+// ==================== UI ====================
+const AI_LEVEL_NAMES = { easy: '쉬움', normal: '보통', hard: '어려움' };
+function isAiGame() { return opponent !== 'human'; }
+function aiTurnNow() { return isAiGame() && !winner && turn === aiColor; }
+function aiInputLocked() { return isAiGame() && !winner && (aiThinking || turn === aiColor); }
+
+function playerLabel(color) {
+  if (isAiGame()) return `${color === BLACK ? '흑' : '백'} (${color === aiColor ? 'AI' : '나'})`;
+  return color === BLACK ? '흑' : '백';
+}
+
+function updateUI() {
+  const status = document.getElementById('status');
+  if (winner === -1) {
+    status.innerHTML = '🤝 무승부 — 무진행 규정';
+  } else if (winner) {
+    status.innerHTML = `🏆 ${winner === BLACK ? '⚫' : '⚪'} ${playerLabel(winner)} ${resigned ? '기권승!' : '승리!'}`;
+  } else if (isAiGame() && (aiThinking || turn === aiColor)) {
+    status.innerHTML = '🤖 AI 생각 중…';
+  } else {
+    const cls = turn === BLACK ? 'black' : 'white';
+    status.innerHTML = `<span class="turn-dot ${cls}"></span> ${playerLabel(turn)} 차례` +
+      (forcedIdx >= 0 ? ' — ⚡ 연속 점프' : '');
+  }
+
+  const bCap = 12 - R.countPieces(board, WHITE);   // 흑이 잡은 백 말
+  const wCap = 12 - R.countPieces(board, BLACK);   // 백이 잡은 흑 말
+  document.getElementById('infoBar').innerHTML =
+    `<span>⚫ 잡은 말 <b>${bCap}</b></span>` +
+    `<span>⚪ 잡은 말 <b>${wCap}</b></span>` +
+    `<span>수순 <b>${history.length}</b></span>` +
+    (isAiGame() ? `<span>상대 <b>AI ${AI_LEVEL_NAMES[opponent]}</b> · 내 말 ${mySide === BLACK ? '⚫' : '⚪'}</span>` : '');
+
+  document.getElementById('undoBtn').disabled = aiThinking ||
+    (isAiGame()
+      ? (!resigned && (!history.some(h => h.turnBefore === mySide) || (!winner && turn === aiColor)))
+      : (!resigned && history.length === 0));
+  document.getElementById('resignBtn').disabled = !!winner;
+
+  document.getElementById('hintText').textContent =
+    '영국식 체커: 일반 말은 전방 대각 1칸, 잡기는 상대 말을 뛰어넘기(전방만). ' +
+    '잡을 수 있으면 반드시 잡아야 하고(여러 경로 중 선택은 자유), 연속 점프는 끝까지 이어야 합니다. ' +
+    '끝줄에 도달하면 👑 킹으로 승격해 앞뒤로 움직입니다(잡기로 도달 시 그 수는 종료). ' +
+    `상대 말 전멸 또는 이동 불가 시 승리 · 잡기/전진 없이 ${R.NO_PROGRESS_LIMIT}수 지나면 무승부.`;
+}
+
+// 설정 select는 "새 대국부터 적용" — 진행 중 대국을 파기하지 않음
+function gameInProgress() { return history.length > 0 && !winner; }
+function onSettingChange() {
+  if (gameInProgress()) setNotice('변경한 설정은 다음 "새 대국"부터 적용됩니다.');
+  else newGame();
+}
+
+document.getElementById('undoBtn').addEventListener('click', undo);
+document.getElementById('resignBtn').addEventListener('click', resign);
+document.getElementById('newBtn').addEventListener('click', newGame);
+document.getElementById('oppSel').addEventListener('change', () => {
+  document.getElementById('mySideSel').style.display =
+    document.getElementById('oppSel').value === 'human' ? 'none' : '';
+  onSettingChange();
+});
+document.getElementById('mySideSel').addEventListener('change', onSettingChange);
+
+// ==================== AI 플러밍 (Worker + 폴백) ====================
+let aiWorker = null, aiWorkerFailed = false, aiLocalEngine = null;
+
+function ensureWorker() {
+  if (aiWorker || aiWorkerFailed) return;
+  try {
+    const src = checkersRulesModule.toString() + '\n' + checkersEngineModule.toString() +
+      '\nvar __E = checkersEngineModule();' +
+      '\nonmessage = function (e) { var d = e.data;' +
+      ' postMessage({ mv: __E.findBestMove(d.board, d.turn, d.forced, d.level), token: d.token }); };';
+    aiWorker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+    aiWorker.onmessage = e => handleAiResponse(e.data.mv, e.data.token);
+    aiWorker.onerror = () => {              // 워커 실패(file:// 제약 등) → 메인 스레드 폴백
+      aiWorkerFailed = true;
+      try { aiWorker.terminate(); } catch (_) {}
+      aiWorker = null;
+      if (aiThinking) runAiLocal(aiMoveToken);
+    };
+  } catch (_) {
+    aiWorkerFailed = true;
+    aiWorker = null;
+  }
+}
+
+function runAiLocal(token) {
+  setTimeout(() => {
+    if (token !== aiMoveToken) return;
+    if (!aiLocalEngine) aiLocalEngine = checkersEngineModule();
+    handleAiResponse(aiLocalEngine.findBestMove(Array.from(board), turn, forcedIdx, opponent), token);
+  }, 30);
+}
+
+function maybeTriggerAI() {
+  if (!aiTurnNow() || aiThinking) return;
+  aiThinking = true;
+  aiThinkStart = performance.now();
+  const token = ++aiMoveToken;
+  updateUI();
+  ensureWorker();
+  if (aiWorker) aiWorker.postMessage({ board: Array.from(board), turn, forced: forcedIdx, level: opponent, token });
+  else runAiLocal(token);
+}
+
+function handleAiResponse(mv, token) {
+  if (token !== aiMoveToken) return;
+  // 너무 즉답이면 어색하니 최소 350ms 유지 (연쇄 점프도 한 템포씩 보이게)
+  const wait = Math.max(0, 350 - (performance.now() - aiThinkStart));
+  setTimeout(() => {
+    if (token !== aiMoveToken) return;
+    aiThinking = false;
+    if (aiTurnNow()) {
+      // 안전망: 엔진 수를 합법수 목록과 대조 — 무효면 첫 합법수
+      const legal = R.allMoves(board, turn, forcedIdx);
+      let chosen = mv ? legal.find(m => m.from === mv.from && m.to === mv.to && m.cap === mv.cap) : null;
+      if (!chosen && legal.length) chosen = legal[0];
+      if (chosen) { playMove(chosen); return; }   // 연쇄면 playMove → maybeTriggerAI로 이어짐
+    }
+    updateUI();
+    draw();
+  }, wait);
+}
+
+// ==================== 시작 ====================
+newGame();
+</script>
+</body>
+</html>

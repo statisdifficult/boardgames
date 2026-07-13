@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>원카드</title>
+<style>
+  :root { --bg:#1a1d24; --panel:#242832; --text:#e8e6e0; --muted:#9a9788; --accent:#d4a24e; --danger:#e05555; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    background:var(--bg); color:var(--text);
+    font-family:"Apple SD Gothic Neo","Pretendard",sans-serif;
+    display:flex; flex-direction:column; align-items:center;
+    min-height:100vh; padding:20px 12px;
+    user-select:none; -webkit-user-select:none;
+  }
+  h1 { font-size:20px; font-weight:700; letter-spacing:-0.5px; }
+  h1 span { color:var(--accent); }
+  .sub { color:var(--muted); font-size:13px; margin-top:4px; text-align:center; }
+  #status { margin:12px 0 2px; font-size:16px; font-weight:600; min-height:24px; text-align:center; }
+  #notice { min-height:20px; font-size:13px; color:var(--accent); margin-bottom:4px; text-align:center; max-width:560px; }
+  #notice.pop { animation:pop .3s ease-out; }
+  @keyframes pop { from { transform:scale(.9); opacity:.2; } to { transform:scale(1); opacity:1; } }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.45; } }
+
+  /* ---- 카드 (holdem .pcard 계열) ---- */
+  .pcard {
+    width:46px; height:64px; background:#fdfdf8; border-radius:5px; color:#16181d;
+    display:inline-flex; flex-direction:column; align-items:center; justify-content:center;
+    line-height:1.05; font-weight:800; box-shadow:0 2px 5px rgba(0,0,0,.45); flex-shrink:0;
+  }
+  .pcard .rk { font-size:19px; }
+  .pcard .st { font-size:16px; }
+  .pcard.red { color:#c62828; }
+  .pcard.joker { color:#7b3fa0; }
+  .pcard.joker .rk { font-size:20px; }
+  .pcard.joker .st { font-size:8px; letter-spacing:.5px; }
+  .pcard.back { background:repeating-linear-gradient(135deg,#5a3d8a 0 4px,#4a3172 4px 8px); border:2px solid #efe9dc; }
+
+  /* ---- 상대 패널 ---- */
+  #opps { display:flex; gap:10px; margin-top:10px; justify-content:center; flex-wrap:wrap; }
+  .opp { background:var(--panel); border:1px solid #3a3f4d; border-radius:10px; padding:8px 12px; min-width:118px; text-align:center; transition:opacity .3s; }
+  .opp.active { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent); }
+  .opp.dead { opacity:.35; }
+  .oname { font-size:13px; font-weight:700; }
+  .obacks { display:flex; justify-content:center; min-height:36px; margin-top:6px; padding-left:12px; }
+  .obacks .pcard { width:24px; height:34px; margin-left:-12px; border-radius:3px; border-width:1px; }
+  .ocount { font-size:12px; color:var(--muted); margin-top:4px; }
+  .badge-one { background:var(--danger); color:#fff; font-size:10px; font-weight:700; padding:1px 7px; border-radius:8px; margin-left:5px; animation:pulse 1s infinite; vertical-align:1px; }
+
+  /* ---- 중앙 테이블 ---- */
+  #table { display:flex; align-items:center; justify-content:center; gap:22px; margin:14px 0 4px;
+    background:var(--panel); border:1px solid #3a3f4d; border-radius:14px; padding:14px 26px; }
+  .pilewrap { display:flex; flex-direction:column; align-items:center; gap:5px; }
+  .pilelabel { font-size:11px; color:var(--muted); }
+  #deckPile { cursor:pointer; }
+  #midInfo { display:flex; flex-direction:column; align-items:center; gap:6px; min-width:96px; }
+  #attackBadge { background:var(--danger); color:#fff; font-weight:800; border-radius:14px; padding:3px 14px; font-size:14px; display:none; animation:pulse 1.2s infinite; }
+  #suitBadge { background:#2f3442; border:1px solid #3a3f4d; border-radius:14px; padding:2px 12px; font-size:13px; font-weight:700; display:none; }
+  #dirBadge { color:var(--muted); font-size:13px; }
+
+  /* ---- 내 자리 ---- */
+  #myArea { margin-top:10px; background:var(--panel); border:1px solid #3a3f4d; border-radius:12px; padding:10px 12px; width:100%; max-width:760px; }
+  #myArea.active { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent); }
+  #myArea.dead { opacity:.4; }
+  #myHead { display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; min-height:18px; }
+  #myHand { display:flex; gap:8px; overflow-x:auto; padding:10px 2px 6px; -webkit-overflow-scrolling:touch; min-height:80px; }
+  #myHand .pcard { cursor:pointer; transition:transform .12s, box-shadow .12s; }
+  #myHand .pcard.ok { box-shadow:0 0 0 2px var(--accent), 0 3px 8px rgba(0,0,0,.5); }
+  #myHand .pcard.ok:hover { transform:translateY(-6px); }
+  #myHand .pcard.dim { opacity:.4; }
+  #myBtns { display:flex; justify-content:center; margin-top:4px; }
+
+  .bar { display:flex; gap:18px; margin-top:12px; background:var(--panel); padding:9px 18px; border-radius:8px; font-size:13px; flex-wrap:wrap; justify-content:center; }
+  .bar b { color:var(--accent); }
+  .controls { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; justify-content:center; align-items:center; }
+  button {
+    background:var(--panel); color:var(--text); border:1px solid #3a3f4d; border-radius:8px;
+    padding:9px 18px; font-size:14px; font-family:inherit; cursor:pointer;
+    touch-action:manipulation; transition:background .15s;
+  }
+  button:hover { background:#2f3442; }
+  button:disabled { opacity:.4; cursor:default; }
+  button.primary { background:var(--accent); color:#1a1d24; border-color:var(--accent); font-weight:700; }
+  button.primary:hover:not(:disabled) { background:#e0b160; }
+  select {
+    background:var(--panel); color:var(--text); border:1px solid #3a3f4d; border-radius:8px;
+    padding:9px 12px; font-size:14px; font-family:inherit; cursor:pointer; touch-action:manipulation;
+  }
+  .hint { color:var(--muted); font-size:12px; margin-top:10px; max-width:640px; text-align:center; line-height:1.6; }
+  .hint b { color:var(--text); }
+  a.home { color:var(--muted); font-size:12px; margin-top:14px; text-decoration:none; }
+  a.home:hover { color:var(--accent); }
+  #overlay {
+    position:fixed; inset:0; background:rgba(15,17,22,.97); display:none;
+    flex-direction:column; align-items:center; justify-content:center;
+    z-index:10; text-align:center; padding:24px;
+  }
+  #overlay.show { display:flex; }
+  #overlay h2 { font-size:22px; margin-bottom:12px; }
+  #overlay p { color:var(--muted); font-size:15px; line-height:1.7; max-width:460px; white-space:pre-line; }
+  #overlayCard { display:flex; justify-content:center; margin-top:14px; }
+  #overlayBtns { display:flex; flex-direction:column; gap:10px; margin-top:22px; min-width:280px; }
+
+  @media (max-width:600px) {
+    body { padding:12px 8px; }
+    h1 { font-size:18px; }
+    .sub { font-size:12px; }
+    #status { font-size:14px; }
+    #notice { font-size:12px; }
+    .pcard { width:38px; height:54px; }
+    .pcard .rk { font-size:16px; }
+    .pcard .st { font-size:13px; }
+    .pcard.joker .rk { font-size:17px; }
+    .pcard.joker .st { font-size:7px; }
+    .obacks .pcard { width:20px; height:28px; margin-left:-11px; }
+    .opp { min-width:96px; padding:6px 8px; }
+    #table { gap:14px; padding:10px 14px; }
+    #midInfo { min-width:78px; }
+    .bar { gap:10px; padding:8px 12px; font-size:12px; }
+    .controls { gap:6px; }
+    button, select { padding:8px 12px; font-size:13px; }
+    .hint { font-size:11px; }
+  }
+</style>
+</head>
+<body>
+  <h1>원카드 <span>One Card</span></h1>
+  <div class="sub">트럼프 53장(조커 포함) · 나 + AI 1~3명 · 한국 통용 룰</div>
+
+  <div id="status"></div>
+  <div id="notice"></div>
+
+  <div id="opps"></div>
+
+  <div id="table">
+    <div class="pilewrap">
+      <div id="deckPile" title="클릭해서 뽑기 / 공격 받기"></div>
+      <div class="pilelabel" id="deckLabel">덱</div>
+    </div>
+    <div id="midInfo">
+      <div id="attackBadge"></div>
+      <div id="suitBadge"></div>
+      <div id="dirBadge"></div>
+    </div>
+    <div class="pilewrap">
+      <div id="discardPile"></div>
+      <div class="pilelabel">버림</div>
+    </div>
+  </div>
+
+  <div id="myArea">
+    <div id="myHead"><span id="myName"></span><span id="myState"></span></div>
+    <div id="myHand"></div>
+    <div id="myBtns"><button id="drawBtn" class="primary">카드 뽑기</button></div>
+  </div>
+
+  <div class="bar" id="infoBar"></div>
+
+  <div class="controls">
+    <select id="nSel" title="새 게임부터 적용">
+      <option value="2">2인 (나 + AI 1)</option>
+      <option value="3">3인 (나 + AI 2)</option>
+      <option value="4" selected>4인 (나 + AI 3)</option>
+    </select>
+    <select id="ruinSel" title="새 게임부터 적용">
+      <option value="1" selected>파산 룰 켬 (15장 초과 탈락)</option>
+      <option value="0">파산 룰 끔</option>
+    </select>
+    <button id="newBtn">새 게임</button>
+  </div>
+
+  <div class="hint">같은 무늬 또는 같은 숫자를 냅니다. <b>2</b>=+2 · <b>A</b>=+3 · <b>🃏 조커</b>=+5 공격(누적).
+    되받기는 같은 숫자 또는 더 높은 위계(2&lt;A&lt;조커)의 공격 카드만 가능하고, 무늬·숫자 일치 규칙도 지켜야 합니다(조커는 아무 카드 위에나 가능).
+    못 받으면 누적 장수만큼 먹고 턴이 넘어갑니다. <b>J</b>=다음 사람 건너뛰기 · <b>Q</b>=방향 전환(2인에선 한 번 더와 동치) · <b>K</b>=한 번 더 · <b>7</b>=무늬 변경.
+    낼 카드가 없으면 1장 뽑고, 뽑은 카드를 낼 수 있으면 바로 낼지 선택합니다. 손패 1장이 되면 "원카드!"가 자동 표시되고, 손패를 모두 털면 승리.
+    덱이 떨어지면 버림더미(맨 위 제외)를 섞어 다시 씁니다.</div>
+  <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <div id="overlay">
+    <h2 id="overlayTitle"></h2>
+    <p id="overlayDesc"></p>
+    <div id="overlayCard"></div>
+    <div id="overlayBtns"></div>
+  </div>
+
+<script>
+// ==================== 원카드 코어 (순수 로직 — DOM 무의존, JXA 테스트 공유) ====================
+/* __ONECARD_CORE_START__ */
+function oneCore() {
+  'use strict';
+
+  // 카드 = 0..51: rank = c % 13 (0=A, 1=2 … 6=7 … 10=J, 11=Q, 12=K), suit = (c/13)|0 (0=♠,1=♥,2=♦,3=♣). 조커 = 52.
+  var JOKER = 52;
+  var RANK_CH = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+  var SUIT_SYM = ['♠', '♥', '♦', '♣'];
+  var HAND_LIMIT = 15;                 // 파산 룰: 15장 '초과' 시 탈락
+
+  function rankOf(c) { return c === JOKER ? -1 : c % 13; }
+  function suitOf(c) { return c === JOKER ? -1 : (c / 13) | 0; }
+  function isJoker(c) { return c === JOKER; }
+
+  // 공격 카드: 2=+2, A=+3, 조커=+5
+  function attackValue(c) {
+    if (c === JOKER) return 5;
+    var r = rankOf(c);
+    return r === 0 ? 3 : r === 1 ? 2 : 0;
+  }
+  // 되받기 위계: 2(1) < A(2) < 조커(3). 0 = 공격 카드 아님
+  function attackTier(c) {
+    if (c === JOKER) return 3;
+    var r = rankOf(c);
+    return r === 0 ? 2 : r === 1 ? 1 : 0;
+  }
+  // 시작 오픈 카드로 부적합한 특수 카드 (A, 2, 7, J, Q, K, 조커)
+  function isSpecialStart(c) {
+    if (c === JOKER) return true;
+    var r = rankOf(c);
+    return r === 0 || r === 1 || r === 6 || r >= 10;
+  }
+
+  function shuffle(a, rng) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = (rng() * (i + 1)) | 0, t = a[i];
+      a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  // 새 게임: 2인 7장 / 3~4인 5장. 시작 버림 카드는 특수 효과 없는 평범한 카드로 보장.
+  function createGame(n, opts, rng) {
+    opts = opts || {};
+    var deck = [], i, k;
+    for (i = 0; i < 53; i++) deck.push(i);
+    shuffle(deck, rng);
+    var startIdx = -1;
+    for (i = deck.length - 1; i >= 0; i--) if (!isSpecialStart(deck[i])) { startIdx = i; break; }
+    var start = deck.splice(startIdx, 1)[0];
+    var per = n === 2 ? 7 : 5;
+    var players = [];
+    for (i = 0; i < n; i++) players.push({ hand: [], alive: true });
+    for (k = 0; k < per; k++)
+      for (i = 0; i < n; i++) players[i].hand.push(deck.pop());
+    return {
+      n: n, players: players,
+      deck: deck, discard: [start],      // discard 마지막 원소 = 맨 위
+      turn: 0, dir: 1,
+      attack: 0, attackTier: 0,          // 누적 공격 장수 / 마지막 공격 카드 위계
+      forcedSuit: -1,                    // 7로 선언된 무늬 (-1 = 없음)
+      awaitCard: -1,                     // 방금 뽑아 "낼지 말지" 결정 대기 중인 카드
+      bankrupt: opts.bankrupt !== false, // 파산 룰 (기본 켬)
+      winner: -1, over: false,           // winner: -1 진행, -2 교착 무승부, 0.. 승자
+      passes: 0,                         // 연속 '뽑지도 내지도 못한' 턴 — 교착 감지
+      reshuffles: 0,
+      event: null,                       // 마지막 사건 (UI 배너용)
+    };
+  }
+
+  function top(st) { return st.discard[st.discard.length - 1]; }
+  function aliveCount(st) {
+    var k = 0, i;
+    for (i = 0; i < st.n; i++) if (st.players[i].alive) k++;
+    return k;
+  }
+  function nextAlive(st, from, steps) {
+    var p = from;
+    while (steps > 0) {
+      do { p = (p + st.dir + st.n) % st.n; } while (!st.players[p].alive);
+      steps--;
+    }
+    return p;
+  }
+  function totalCards(st) {              // 카드 총량 보존 검증용 (= 53이어야 함)
+    var k = st.deck.length + st.discard.length, i;
+    for (i = 0; i < st.n; i++) k += st.players[i].hand.length;
+    return k;
+  }
+
+  // 무늬/숫자 일치 판정 — 7 무늬 선언과 "조커 위엔 아무 카드나" 반영
+  function matches(st, c) {
+    var t = top(st);
+    if (isJoker(t)) return true;
+    var suit = st.forcedSuit >= 0 ? st.forcedSuit : suitOf(t);
+    return suitOf(c) === suit || rankOf(c) === rankOf(t);
+  }
+
+  // 이 카드를 지금 낼 수 있는가
+  function playable(st, c) {
+    if (st.attack > 0) {
+      var tier = attackTier(c);
+      if (tier === 0 || tier < st.attackTier) return false; // 같은 계열/상위 공격으로만 되받기 (조커>A>2)
+      if (isJoker(c)) return true;                          // 조커는 아무 카드 위에나
+      return matches(st, c);                                // 되받기도 무늬·숫자 일치는 지켜야 (통용)
+    }
+    if (isJoker(c)) return true;
+    return matches(st, c);
+  }
+
+  // p가 지금 낼 수 있는 손패 인덱스 목록. 방금 뽑은 카드 결정 대기 중엔 그 카드만.
+  function legalIdxs(st, p) {
+    var hand = st.players[p].hand, out = [], i;
+    for (i = 0; i < hand.length; i++) {
+      if (st.awaitCard >= 0 && hand[i] !== st.awaitCard) continue;
+      if (playable(st, hand[i])) out.push(i);
+    }
+    return out;
+  }
+
+  function advance(st, steps) { st.turn = nextAlive(st, st.turn, steps); }
+
+  // 덱에서 1장. 덱 소진 시 버림더미(맨 위 제외)를 섞어 덱으로. 그래도 없으면 -1.
+  function drawFromDeck(st, rng) {
+    if (st.deck.length === 0 && st.discard.length > 1) {
+      var t = st.discard.pop();
+      st.deck = shuffle(st.discard, rng);
+      st.discard = [t];
+      st.reshuffles++;
+    }
+    if (st.deck.length === 0) return -1;
+    return st.deck.pop();
+  }
+
+  // 파산 룰 체크 → 탈락 처리. 탈락자 손패는 덱에 섞어 되돌림 (카드 보존).
+  function checkBankrupt(st, p, rng) {
+    if (!st.bankrupt) return false;
+    var pl = st.players[p];
+    if (pl.hand.length <= HAND_LIMIT) return false;
+    pl.alive = false;
+    st.deck = shuffle(st.deck.concat(pl.hand), rng);
+    pl.hand = [];
+    if (aliveCount(st) === 1) {
+      for (var i = 0; i < st.n; i++)
+        if (st.players[i].alive) { st.winner = i; st.over = true; }
+    }
+    return true;
+  }
+
+  // 공격을 못 받아(또는 안 받고) 누적 장수만큼 먹음 → 턴 종료
+  function eatAttack(st, p, rng) {
+    if (st.over || st.turn !== p || st.attack === 0 || st.awaitCard >= 0) return null;
+    var want = st.attack, got = 0, i, c;
+    for (i = 0; i < want; i++) {
+      c = drawFromDeck(st, rng);
+      if (c < 0) break;                  // 물리적으로 카드가 부족하면 있는 만큼만
+      st.players[p].hand.push(c);
+      got++;
+    }
+    st.attack = 0; st.attackTier = 0;
+    st.passes = 0;
+    var bank = checkBankrupt(st, p, rng);
+    st.event = { type: bank ? 'bankrupt' : 'eat', p: p, count: got, want: want };
+    if (!st.over) advance(st, 1);
+    return st.event;
+  }
+
+  // 낼 카드가 없어(또는 안 내고) 1장 뽑기. 뽑은 카드를 낼 수 있으면 awaitCard로 보류(선택권).
+  function drawOne(st, p, rng) {
+    if (st.over || st.turn !== p || st.attack > 0 || st.awaitCard >= 0) return null;
+    var c = drawFromDeck(st, rng);
+    if (c < 0) {                         // 덱·버림더미 모두 소진 — 턴 넘김 + 교착 감지
+      st.passes++;
+      st.event = { type: 'pass', p: p };
+      if (st.passes >= aliveCount(st)) { st.over = true; st.winner = -2; }
+      else advance(st, 1);
+      return st.event;
+    }
+    st.passes = 0;
+    st.players[p].hand.push(c);
+    if (checkBankrupt(st, p, rng)) {
+      st.event = { type: 'bankrupt', p: p, count: 1, want: 1 };
+      if (!st.over) advance(st, 1);
+      return st.event;
+    }
+    if (playable(st, c)) {
+      st.awaitCard = c;
+      st.event = { type: 'drawn', p: p, canPlay: true };
+    } else {
+      st.event = { type: 'drawn', p: p, canPlay: false };
+      advance(st, 1);
+    }
+    return st.event;
+  }
+
+  // 뽑은 카드를 내지 않고 손에 둠 → 턴 종료
+  function keepDrawn(st, p) {
+    if (st.over || st.turn !== p || st.awaitCard < 0) return null;
+    st.awaitCard = -1;
+    st.event = { type: 'keep', p: p };
+    advance(st, 1);
+    return st.event;
+  }
+
+  // handIdx의 카드를 냄. 7이면 declaredSuit(0~3) 필수.
+  // J=건너뛰기(2인이면 자연히 다시 내 차례), Q=방향 전환(생존 2인이면 '한 번 더'와 동치 — 통용),
+  // K=한 번 더, 2/A/조커=공격 누적, 손패 0장=즉시 승리.
+  function playCard(st, p, handIdx, declaredSuit) {
+    if (st.over || st.turn !== p) return null;
+    var hand = st.players[p].hand;
+    var c = hand[handIdx];
+    if (c === undefined) return null;
+    if (st.awaitCard >= 0 && c !== st.awaitCard) return null; // 뽑은 직후엔 그 카드만
+    if (!playable(st, c)) return null;
+    var r = rankOf(c);
+    if (r === 6 && !(declaredSuit >= 0 && declaredSuit <= 3)) return null; // 7은 무늬 선언 필수
+    hand.splice(handIdx, 1);
+    st.discard.push(c);
+    st.awaitCard = -1;
+    st.passes = 0;
+    st.forcedSuit = r === 6 ? declaredSuit : -1;
+    var av = attackValue(c);
+    if (av > 0) { st.attack += av; st.attackTier = attackTier(c); }
+    var ev = { type: 'play', p: p, card: c, oneCard: hand.length === 1 };
+    if (r === 6) ev.suit = declaredSuit;
+    if (hand.length === 0) {             // 손패 소진 = 승리
+      st.winner = p; st.over = true; ev.win = true;
+      st.event = ev;
+      return ev;
+    }
+    var steps = 1;
+    if (r === 12) {                      // K: 한 번 더
+      steps = 0; ev.extra = true;
+    } else if (r === 11) {               // Q: 방향 전환 (생존 2인이면 한 번 더와 동치 — 통용 처리)
+      st.dir = -st.dir;
+      ev.reverse = true;
+      if (aliveCount(st) === 2) { steps = 0; ev.extra = true; }
+    } else if (r === 10) {               // J: 다음 사람 건너뛰기 (2인 특례: 상대를 건너뛰어 다시 나)
+      ev.skip = nextAlive(st, p, 1);
+      steps = 2;
+    }
+    advance(st, steps);
+    st.event = ev;
+    return ev;
+  }
+
+  // ---- AI ----
+  // 7 무늬 선택: 내고 남는 손패의 최다 무늬
+  function bestSuitFor(hand, exceptIdx) {
+    var cnt = [0, 0, 0, 0], i, s = 0;
+    for (i = 0; i < hand.length; i++) {
+      if (i === exceptIdx || isJoker(hand[i])) continue;
+      cnt[suitOf(hand[i])]++;
+    }
+    for (i = 1; i < 4; i++) if (cnt[i] > cnt[s]) s = i;
+    return s;
+  }
+
+  // 반환: {type:'play', idx, suit?} | {type:'eat'} | {type:'draw'}
+  // 공격 중: 최소 위계 카드로 되받기(센 카드는 아껴둠). 평시: 무늬 통계 + 공격 연계 점수화.
+  function aiMove(st, p) {
+    var hand = st.players[p].hand;
+    var legal = legalIdxs(st, p);
+    var i;
+    if (st.attack > 0) {
+      if (legal.length === 0) return { type: 'eat' };
+      var best = legal[0];
+      for (i = 1; i < legal.length; i++)
+        if (attackTier(hand[legal[i]]) < attackTier(hand[best])) best = legal[i];
+      return { type: 'play', idx: best };
+    }
+    if (legal.length === 0) return { type: 'draw' };
+    var nxt = nextAlive(st, p, 1);
+    var nxtLen = st.players[nxt].hand.length;
+    var suitCnt = [0, 0, 0, 0];
+    for (i = 0; i < hand.length; i++) if (!isJoker(hand[i])) suitCnt[suitOf(hand[i])]++;
+    var bestIdx = legal[0], bestSc = -1e9;
+    for (i = 0; i < legal.length; i++) {
+      var c = hand[legal[i]], r = rankOf(c), av = attackValue(c), sc = 0;
+      if (isJoker(c)) sc -= 60;                    // 조커는 아껴둠
+      else sc += suitCnt[suitOf(c)] * 6;           // 손패 최다 무늬 유지 (무늬 통계)
+      if (av > 0) sc += av * 3;                    // 공격 카드 기본 가치 (공격 연계)
+      if (nxtLen <= 2) {                           // 다음 사람이 끝나기 직전 — 공격/차단 우선
+        if (av > 0) sc += 100 + av * 10;
+        if (r === 10) sc += 90;                    // J 건너뛰기
+        if (r === 11) sc += 70;                    // Q 방향 전환
+      }
+      if (r === 12 && legal.length >= 2) sc += 50; // K: 이어 낼 카드가 있을 때 한 번 더
+      if (r === 6 && hand.length > 2) sc += 20;    // 7: 무늬 주도권
+      if (sc > bestSc) { bestSc = sc; bestIdx = legal[i]; }
+    }
+    var mv = { type: 'play', idx: bestIdx };
+    if (rankOf(hand[bestIdx]) === 6) mv.suit = bestSuitFor(hand, bestIdx);
+    return mv;
+  }
+
+  return {
+    JOKER: JOKER, RANK_CH: RANK_CH, SUIT_SYM: SUIT_SYM, HAND_LIMIT: HAND_LIMIT,
+    rankOf: rankOf, suitOf: suitOf, isJoker: isJoker,
+    attackValue: attackValue, attackTier: attackTier,
+    shuffle: shuffle, createGame: createGame, top: top,
+    matches: matches, playable: playable, legalIdxs: legalIdxs,
+    playCard: playCard, drawOne: drawOne, keepDrawn: keepDrawn, eatAttack: eatAttack,
+    aliveCount: aliveCount, nextAlive: nextAlive, totalCards: totalCards,
+    aiMove: aiMove, bestSuitFor: bestSuitFor,
+  };
+}
+/* __ONECARD_CORE_END__ */
+
+// ==================== UI ====================
+const core = oneCore();
+const $id = id => document.getElementById(id);
+const NAMES = ['나', 'AI 1', 'AI 2', 'AI 3'];
+const SUIT_KO = ['스페이드 ♠', '하트 ♥', '다이아 ♦', '클로버 ♣'];
+let game = null;
+let aiToken = 0;              // 새 게임 시 진행 중이던 AI 타이머 무효화
+
+function name(p) { return NAMES[p]; }
+function cardName(c) {
+  if (c === core.JOKER) return '🃏 조커';
+  return core.SUIT_SYM[core.suitOf(c)] + core.RANK_CH[core.rankOf(c)];
+}
+function cardHTML(c, cls, dataI) {
+  const d = dataI != null ? ` data-i="${dataI}"` : '';
+  if (c === core.JOKER)
+    return `<div class="pcard joker${cls ? ' ' + cls : ''}"${d}><span class="rk">🃏</span><span class="st">JOKER</span></div>`;
+  const r = core.rankOf(c), s = core.suitOf(c);
+  return `<div class="pcard${s === 1 || s === 2 ? ' red' : ''}${cls ? ' ' + cls : ''}"${d}>` +
+    `<span class="rk">${core.RANK_CH[r]}</span><span class="st">${core.SUIT_SYM[s]}</span></div>`;
+}
+
+function banner(msg) {
+  const el = $id('notice');
+  el.textContent = msg || '';
+  el.classList.remove('pop');
+  void el.offsetWidth;        // 애니메이션 재시작
+  el.classList.add('pop');
+}
+
+function showOverlay(title, desc, buttons, cardHtml) {
+  $id('overlayTitle').textContent = title;
+  $id('overlayDesc').textContent = desc;
+  $id('overlayCard').innerHTML = cardHtml || '';
+  const wrap = $id('overlayBtns');
+  wrap.innerHTML = '';
+  buttons.forEach(([label, cb], i) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    if (i === 0) b.className = 'primary';
+    b.addEventListener('click', cb);
+    wrap.appendChild(b);
+  });
+  $id('overlay').classList.add('show');
+}
+function hideOverlay() { $id('overlay').classList.remove('show'); }
+
+function sortKey(c) { return c === core.JOKER ? 99 : core.suitOf(c) * 13 + core.rankOf(c); }
+
+function render() {
+  if (!game) return;
+  const alive0 = game.players[0].alive;
+
+  // 상대 패널 (뒷면 + 장수 + 원카드 배지 + 턴 강조)
+  let html = '';
+  for (let i = 1; i < game.n; i++) {
+    const pl = game.players[i];
+    const active = !game.over && game.turn === i && pl.alive;
+    let backs = '';
+    for (let k = 0; k < Math.min(pl.hand.length, 12); k++) backs += '<div class="pcard back"></div>';
+    html += `<div class="opp${active ? ' active' : ''}${pl.alive ? '' : ' dead'}">` +
+      `<div class="oname">🤖 ${name(i)}${pl.alive && pl.hand.length === 1 ? '<span class="badge-one">원카드!</span>' : ''}</div>` +
+      `<div class="obacks">${backs}</div>` +
+      `<div class="ocount">${pl.alive ? pl.hand.length + '장' : '💥 탈락'}</div></div>`;
+  }
+  $id('opps').innerHTML = html;
+
+  // 중앙: 덱 / 공격 누적 / 무늬 / 방향 / 버림 top
+  $id('deckPile').innerHTML = '<div class="pcard back"></div>';
+  $id('deckLabel').textContent = `덱 ${game.deck.length}장`;
+  $id('discardPile').innerHTML = cardHTML(core.top(game));
+  const ab = $id('attackBadge');
+  ab.style.display = game.attack > 0 ? '' : 'none';
+  ab.textContent = `⚔️ 공격 +${game.attack}`;
+  const sb = $id('suitBadge');
+  sb.style.display = game.forcedSuit >= 0 ? '' : 'none';
+  if (game.forcedSuit >= 0) sb.textContent = `무늬 → ${core.SUIT_SYM[game.forcedSuit]}`;
+  $id('dirBadge').textContent = game.dir === 1 ? '방향 →' : '방향 ←';
+
+  // 내 자리
+  const myTurn = !game.over && game.turn === 0 && alive0;
+  $id('myArea').classList.toggle('active', myTurn);
+  $id('myArea').classList.toggle('dead', !alive0);
+  const hand = game.players[0].hand;
+  $id('myName').textContent = `나 — ${alive0 ? hand.length + '장' : '💥 파산 탈락'}`;
+  $id('myState').innerHTML = alive0 && hand.length === 1 ? '<span class="badge-one">원카드!</span>' : '';
+  const legal = new Set(myTurn ? core.legalIdxs(game, 0) : []);
+  const order = hand.map((c, i) => i).sort((a, b) => sortKey(hand[a]) - sortKey(hand[b]));
+  $id('myHand').innerHTML = order.map(i =>
+    cardHTML(hand[i], myTurn ? (legal.has(i) ? 'ok' : 'dim') : '', i)).join('');
+
+  // 상태 / 버튼 / 정보
+  const st = $id('status');
+  if (game.over) {
+    st.textContent = game.winner === 0 ? '🏆 승리! 손패를 모두 털었습니다'
+      : game.winner >= 0 ? `😢 ${name(game.winner)} 승리` : '🤝 교착 — 무승부';
+  } else if (myTurn) {
+    st.textContent = game.attack > 0
+      ? `⚔️ 공격 ${game.attack}장! 되받거나 받으세요`
+      : (legal.size > 0 ? `내 차례 — 낼 카드 ${legal.size}장` : '내 차례 — 낼 카드 없음, 1장 뽑으세요');
+  } else if (!alive0) {
+    st.textContent = `👀 관전 중 — ${name(game.turn)} 차례`;
+  } else {
+    st.textContent = `🤖 ${name(game.turn)} 차례…`;
+  }
+  const btn = $id('drawBtn');
+  btn.disabled = !myTurn || game.awaitCard >= 0;
+  btn.textContent = game.attack > 0 ? `⚔️ 공격 ${game.attack}장 받기` : '카드 뽑기';
+  $id('infoBar').innerHTML =
+    `<span>덱 <b>${game.deck.length}</b>장</span>` +
+    `<span>버림 <b>${game.discard.length}</b>장</span>` +
+    `<span>리셔플 <b>${game.reshuffles}</b>회</span>` +
+    `<span>파산 룰 <b>${game.bankrupt ? '켬' : '끔'}</b></span>`;
+}
+
+// 사건 → 배너 문구
+function evMsg(ev) {
+  const nm = name(ev.p);
+  switch (ev.type) {
+    case 'play': {
+      let m = `${nm} — ${cardName(ev.card)}`;
+      if (core.attackValue(ev.card) > 0) m += ` · ⚔️ 공격 누적 ${game.attack}장`;
+      if (ev.suit != null) m += ` · 무늬 → ${core.SUIT_SYM[ev.suit]}`;
+      if (ev.skip != null) m += ` · ${name(ev.skip)} 건너뜀`;
+      if (ev.reverse) m += ' · 🔄 방향 전환';
+      if (ev.extra) m += ' · 한 번 더!';
+      if (ev.win) m += ' · 🏆 승리!';
+      else if (ev.oneCard) m += ' · 🚨 원카드!';
+      return m;
+    }
+    case 'drawn': return `${nm} — 1장 뽑음`;
+    case 'keep': return `${nm} — 뽑은 카드를 손에 둠`;
+    case 'eat': return `${nm} — 공격 ${ev.want}장 받음 😵${ev.count < ev.want ? ` (남은 카드가 ${ev.count}장뿐)` : ''}`;
+    case 'bankrupt': return `${nm} — 손패 15장 초과, 파산 탈락! 💥`;
+    case 'pass': return `${nm} — 뽑을 카드가 없어 턴을 넘김`;
+  }
+  return '';
+}
+
+function afterAction() {
+  render();
+  if (game.over) { setTimeout(showEnd, 800); return; }
+  if (game.turn !== 0 || !game.players[0].alive) scheduleAI(750);
+}
+
+// ---- 사람 입력 ----
+function onMyCard(i) {
+  if (!game || game.over || game.turn !== 0 || !game.players[0].alive || game.awaitCard >= 0) return;
+  const c = game.players[0].hand[i];
+  if (c === undefined) return;
+  if (!core.playable(game, c)) {
+    banner(game.attack > 0 ? '공격 중엔 같은 숫자나 더 높은 공격 카드만 낼 수 있습니다.' : '그 카드는 지금 낼 수 없습니다.');
+    return;
+  }
+  if (core.rankOf(c) === 6) chooseSuit(s => finishHumanPlay(i, s));
+  else finishHumanPlay(i);
+}
+
+function finishHumanPlay(i, s) {
+  const ev = core.playCard(game, 0, i, s);
+  if (!ev) return;
+  banner(evMsg(ev));
+  afterAction();
+}
+
+function chooseSuit(cb) {
+  showOverlay('무늬 변경 — 7', '바꿀 무늬를 고르세요.',
+    [0, 1, 2, 3].map(s => [core.SUIT_SYM[s] + ' ' + SUIT_KO[s].split(' ')[0], () => { hideOverlay(); cb(s); }]));
+}
+
+function onDraw() {
+  if (!game || game.over || game.turn !== 0 || !game.players[0].alive || game.awaitCard >= 0) return;
+  if (game.attack > 0) {
+    const ev = core.eatAttack(game, 0, Math.random);
+    banner(evMsg(ev));
+    afterAction();
+    return;
+  }
+  const ev = core.drawOne(game, 0, Math.random);
+  if (!ev) return;
+  render();
+  if (ev.type === 'bankrupt' || ev.type === 'pass') { banner(evMsg(ev)); afterAction(); return; }
+  if (game.awaitCard >= 0) {
+    const c = game.awaitCard;
+    showOverlay(`뽑은 카드: ${cardName(c)}`, '바로 낼 수 있는 카드입니다. 어떻게 할까요?', [
+      ['바로 내기', () => {
+        hideOverlay();
+        const idx = game.players[0].hand.indexOf(c);
+        if (core.rankOf(c) === 6) chooseSuit(s => finishHumanPlay(idx, s));
+        else finishHumanPlay(idx);
+      }],
+      ['손에 들고 있기', () => {
+        hideOverlay();
+        const ev2 = core.keepDrawn(game, 0);
+        banner(evMsg(ev2));
+        afterAction();
+      }],
+    ], cardHTML(c));
+  } else {
+    banner(`뽑은 카드는 낼 수 없습니다 — ${name(game.turn)} 차례로 넘어갑니다.`);
+    afterAction();
+  }
+}
+
+// ---- AI 진행 ----
+function scheduleAI(ms) {
+  const tok = aiToken;
+  setTimeout(() => { if (tok === aiToken && game && !game.over) aiStep(); }, ms);
+}
+
+function aiStep() {
+  if (!game || game.over) return;
+  const p = game.turn;
+  if (p === 0 && game.players[0].alive) { render(); return; }
+  const mv = core.aiMove(game, p);
+  let msg = '';
+  if (mv.type === 'eat') {
+    msg = evMsg(core.eatAttack(game, p, Math.random));
+  } else if (mv.type === 'draw') {
+    const ev = core.drawOne(game, p, Math.random);
+    if (game.awaitCard >= 0) {           // AI는 뽑아 낼 수 있으면 바로 냄
+      const mv2 = core.aiMove(game, p);
+      const ev2 = core.playCard(game, p, mv2.idx, mv2.suit);
+      msg = `${name(p)} — 1장 뽑아 바로 냄: ` + evMsg(ev2).replace(`${name(p)} — `, '');
+    } else {
+      msg = evMsg(ev);
+    }
+  } else {
+    msg = evMsg(core.playCard(game, p, mv.idx, mv.suit));
+  }
+  banner(msg);
+  render();
+  if (game.over) { setTimeout(showEnd, 900); return; }
+  if (game.turn !== 0 || !game.players[0].alive) scheduleAI(750);
+}
+
+function showEnd() {
+  if (!game || !game.over) return;
+  let title;
+  if (game.winner === 0) title = '🏆 승리!';
+  else if (game.winner >= 0) title = `${name(game.winner)} 승리`;
+  else title = '🤝 교착 무승부';
+  const desc = game.players.map((pl, i) =>
+    `${name(i)}: ${pl.alive ? pl.hand.length + '장' : '탈락'}`).join(' · ');
+  showOverlay(title, desc, [
+    ['새 게임', () => { hideOverlay(); newGame(); }],
+    ['닫기 (판 보기)', hideOverlay],
+  ]);
+}
+
+function newGame() {
+  aiToken++;
+  const n = parseInt($id('nSel').value, 10);
+  const ruin = $id('ruinSel').value === '1';
+  game = core.createGame(n, { bankrupt: ruin }, Math.random);
+  hideOverlay();
+  banner(`게임 시작 — ${n === 2 ? 7 : 5}장씩 · 시작 카드 ${cardName(core.top(game))}`);
+  render();
+}
+
+function onSettingChange() {
+  if (game && !game.over) banner('변경한 설정은 다음 "새 게임"부터 적용됩니다.');
+  else newGame();
+}
+
+$id('myHand').addEventListener('click', e => {
+  const el = e.target.closest('.pcard');
+  if (!el || el.dataset.i == null) return;
+  onMyCard(parseInt(el.dataset.i, 10));
+});
+$id('deckPile').addEventListener('click', onDraw);
+$id('drawBtn').addEventListener('click', onDraw);
+$id('newBtn').addEventListener('click', newGame);
+$id('nSel').addEventListener('change', onSettingChange);
+$id('ruinSel').addEventListener('change', onSettingChange);
+
+newGame();
+</script>
+</body>
+</html>

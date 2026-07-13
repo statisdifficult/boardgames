@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>사목</title>
+<style>
+  :root {
+    --bg: #1a1d24;
+    --panel: #242832;
+    --text: #e8e6e0;
+    --muted: #9a9788;
+    --accent: #d4a24e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Apple SD Gothic Neo", "Pretendard", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px 16px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  #status {
+    margin: 14px 0 4px;
+    font-size: 16px;
+    font-weight: 600;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+  }
+  #notice {
+    min-height: 20px;
+    font-size: 13px;
+    color: var(--accent);
+    margin-bottom: 8px;
+    text-align: center;
+    max-width: 560px;
+  }
+  .turn-dot {
+    width: 16px; height: 16px; border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 1px 3px rgba(0,0,0,.5);
+    flex-shrink: 0;
+  }
+  .turn-dot.red { background: radial-gradient(circle at 35% 35%, #ff9184, #b3271b); }
+  .turn-dot.yellow { background: radial-gradient(circle at 35% 35%, #ffe08a, #cf9c1d); }
+  canvas {
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.45);
+    cursor: pointer;
+    touch-action: manipulation;
+    max-width: 100%;
+    height: auto;      /* 모바일: max-width 축소 시 가로세로 비율 유지 */
+    display: block;
+  }
+  .bar {
+    display: flex;
+    gap: 20px;
+    margin-top: 14px;
+    background: var(--panel);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .bar b { color: var(--accent); }
+  .controls { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; justify-content: center; align-items: center; }
+  button {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background .15s;
+  }
+  button:hover { background: #2f3442; }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent); color: #1a1d24; border-color: var(--accent); font-weight: 700; }
+  button.primary:hover:not(:disabled) { background: #e0b160; }
+  select {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 10px; max-width: 560px; text-align: center; line-height: 1.6; }
+  a.home { color: var(--muted); font-size: 12px; margin-top: 16px; text-decoration: none; }
+  a.home:hover { color: var(--accent); }
+  #overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,17,22,.97);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    text-align: center;
+    padding: 24px;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 22px; margin-bottom: 12px; }
+  #overlay p { color: var(--muted); font-size: 15px; line-height: 1.7; max-width: 440px; white-space: pre-line; }
+  #overlayBtns { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; min-width: 280px; }
+  @media (max-width: 600px) {
+    body { padding: 12px 8px; }
+    h1 { font-size: 18px; }
+    .sub { font-size: 12px; }
+    #status { font-size: 14px; }
+    #notice { font-size: 12px; }
+    .bar { gap: 10px; padding: 8px 12px; font-size: 12px; }
+    .controls { gap: 6px; }
+    button, select { padding: 8px 12px; font-size: 13px; }
+    .hint { font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+  <h1>사목 <span>四目</span></h1>
+  <div class="sub">7×6 · 중력식 4목 · 로컬 2인 / AI 대전</div>
+
+  <div id="status"></div>
+  <div id="notice"></div>
+  <canvas id="board"></canvas>
+
+  <div class="bar" id="infoBar"></div>
+
+  <div class="controls">
+    <button id="undoBtn">무르기</button>
+    <button id="resignBtn">🏳️ 기권</button>
+    <select id="oppSel" title="새 대국부터 적용">
+      <option value="human">상대: 사람</option>
+      <option value="easy">AI 쉬움</option>
+      <option value="normal">AI 보통</option>
+      <option value="hard">AI 어려움</option>
+    </select>
+    <select id="mySideSel" title="새 대국부터 적용" style="display:none">
+      <option value="1">내 돌: 🔴 빨강 (선공)</option>
+      <option value="2">내 돌: 🟡 노랑 (후공)</option>
+    </select>
+    <button id="newBtn">새 대국</button>
+  </div>
+
+  <div class="hint" id="hintText"></div>
+  <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <div id="overlay">
+    <h2 id="overlayTitle"></h2>
+    <p id="overlayDesc"></p>
+    <div id="overlayBtns"></div>
+  </div>
+
+<script>
+// ==================== 사목 규칙 (순수 함수) ====================
+// 온라인 대전·테스트에서 그대로 추출해 재사용할 수 있도록 DOM/전역 무의존으로 분리.
+/* __SAMOK_RULES_START__ */
+function samokRulesModule() {
+  'use strict';
+  var COLS = 7, ROWS = 6, EMPTY = 0;
+  var DIRS = [[0, 1], [1, 0], [1, 1], [1, -1]];   // [dr, dc] — 가로 / 세로 / 대각 ↘ / 대각 ↗
+
+  function inB(r, c) { return r >= 0 && r < ROWS && c >= 0 && c < COLS; }
+  function at(b, r, c) { return inB(r, c) ? b[r * COLS + c] : -1; }
+
+  // col에 돌을 떨어뜨렸을 때 안착할 행 (0=맨 위, ROWS-1=맨 아래). 꽉 찬 열/범위 밖이면 -1
+  function landingRow(b, col) {
+    if (col < 0 || col >= COLS) return -1;
+    for (var r = ROWS - 1; r >= 0; r--) if (b[r * COLS + col] === EMPTY) return r;
+    return -1;
+  }
+
+  function legalCols(b) {
+    var out = [], c;
+    for (c = 0; c < COLS; c++) if (landingRow(b, c) >= 0) out.push(c);
+    return out;
+  }
+
+  // col에 color 착수(중력 적용, b를 직접 수정). 성공 시 안착한 행, 불가면 -1
+  function drop(b, col, color) {
+    var r = landingRow(b, col);
+    if (r >= 0) b[r * COLS + col] = color;
+    return r;
+  }
+
+  // (r,c)를 포함하는 4연결 이상 라인 — [[r,c], ...] (연결 전체) 또는 null
+  function checkWin(b, r, c, color) {
+    for (var d = 0; d < 4; d++) {
+      var dr = DIRS[d][0], dc = DIRS[d][1];
+      var line = [[r, c]], i, j;
+      for (i = 1; at(b, r + dr * i, c + dc * i) === color; i++) line.push([r + dr * i, c + dc * i]);
+      for (j = 1; at(b, r - dr * j, c - dc * j) === color; j++) line.push([r - dr * j, c - dc * j]);
+      if (line.length >= 4) return line;
+    }
+    return null;
+  }
+
+  function isFull(b) {
+    for (var c = 0; c < COLS; c++) if (landingRow(b, c) >= 0) return false;
+    return true;
+  }
+
+  return { COLS: COLS, ROWS: ROWS, landingRow: landingRow, legalCols: legalCols,
+           drop: drop, checkWin: checkWin, isFull: isFull };
+}
+/* __SAMOK_RULES_END__ */
+
+const RULES = samokRulesModule();
+const COLS = 7, ROWS = 6;
+const EMPTY = 0, P1 = 1, P2 = 2;      // P1 = 🔴 빨강(선공), P2 = 🟡 노랑
+
+let board, turn, moves, winner, winLine, hoverCol, resigned, anim;
+
+// ---- AI 대전 상태 ----
+let opponent = 'human';     // 'human' | 'easy' | 'normal' | 'hard'
+let mySide = P1;            // AI 모드에서 사람이 잡은 돌
+let aiColor = P2;           // = 3 - mySide
+let aiThinking = false;     // 워커 응답 대기 중
+let aiMoveToken = 0;        // 새 대국/기권 등으로 무효화된 늦은 응답 무시용
+let aiThinkStart = 0;
+
+function newGame() {
+  board = new Int8Array(COLS * ROWS);
+  turn = P1;
+  moves = [];                // [{col, row, color}]
+  winner = 0;
+  winLine = null;
+  hoverCol = -1;
+  resigned = false;
+  anim = null;
+  opponent = document.getElementById('oppSel').value;
+  mySide = parseInt(document.getElementById('mySideSel').value, 10);
+  aiColor = 3 - mySide;
+  aiThinking = false;
+  aiMoveToken++;              // 진행 중이던 AI 계산 응답 무효화
+  hideOverlay();
+  setNotice('');
+  updateUI();
+  draw();
+  maybeTriggerAI();           // AI가 빨강(선)이면 첫 수 착수
+}
+
+function setNotice(msg) { document.getElementById('notice').textContent = msg || ''; }
+
+// ---- 착수 (열 낙하) ----
+function tryDrop(col) {
+  if (winner || anim) return;
+  const row = RULES.landingRow(board, col);
+  if (row < 0) { if (col >= 0) setNotice('이 열은 가득 찼습니다.'); return; }
+  const color = turn;
+  board[row * COLS + col] = color;
+  moves.push({ col, row, color });
+  const line = RULES.checkWin(board, row, col, color);
+  if (line) {
+    winner = color;
+    winLine = line;
+  } else if (RULES.isFull(board)) {
+    winner = -1;              // 무승부
+  } else {
+    turn = 3 - turn;
+  }
+  setNotice('');
+  startAnim(col, row, color);
+  updateUI();
+}
+
+// ---- 낙하 애니메이션 ----
+function startAnim(col, row, color) {
+  anim = { col, row, color, t0: performance.now(), dur: 90 + 42 * row, p: 0 };
+  requestAnimationFrame(animFrame);
+}
+function animFrame(now) {
+  if (!anim) return;
+  const t = Math.min(1, (now - anim.t0) / anim.dur);
+  anim.p = t * t;             // 중력 느낌의 가속 낙하
+  draw();
+  if (t < 1) { requestAnimationFrame(animFrame); return; }
+  anim = null;
+  draw();
+  updateUI();
+  if (winner) showEndOverlay();
+  else maybeTriggerAI();
+}
+
+// ---- 무르기 / 기권 ----
+function undoOne() {
+  const m = moves.pop();
+  board[m.row * COLS + m.col] = EMPTY;
+  winner = 0;
+  winLine = null;
+  turn = m.color;
+}
+
+function undo() {
+  if (anim) return;
+  if (winner && resigned) { winner = 0; resigned = false; hideOverlay(); updateUI(); draw(); maybeTriggerAI(); return; }
+  if (isAiGame()) {
+    if (aiThinking) { setNotice('AI가 생각하는 중에는 무를 수 없습니다.'); return; }
+    if (!moves.some(m => m.color === mySide)) { setNotice('되돌릴 내 수가 없습니다.'); return; }
+    // 내 차례로 돌아올 때까지 최대 2수(AI 수 + 내 수) 되돌림
+    undoOne();
+    if (moves.length > 0 && turn !== mySide) undoOne();
+  } else {
+    if (moves.length === 0) return;
+    undoOne();
+  }
+  setNotice('');
+  hideOverlay();
+  updateUI();
+  draw();
+}
+
+function resign() {
+  if (winner || anim) return;
+  if (isAiGame()) {
+    winner = aiColor;           // AI 모드에서 기권은 항상 사람의 기권
+    aiThinking = false;
+    aiMoveToken++;              // 계산 중이던 AI 응답 무효화
+  } else {
+    winner = turn === P1 ? P2 : P1;
+  }
+  resigned = true;
+  winLine = null;
+  setNotice('');
+  updateUI();
+  draw();
+  showEndOverlay();
+}
+
+// ---- 오버레이 ----
+function showOverlay(title, desc, buttons) {
+  document.getElementById('overlayTitle').textContent = title;
+  document.getElementById('overlayDesc').textContent = desc;
+  const wrap = document.getElementById('overlayBtns');
+  wrap.innerHTML = '';
+  buttons.forEach(([label, cb], i) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    if (i === 0) b.className = 'primary';
+    b.addEventListener('click', cb);
+    wrap.appendChild(b);
+  });
+  document.getElementById('overlay').classList.add('show');
+}
+function hideOverlay() { document.getElementById('overlay').classList.remove('show'); }
+
+function showEndOverlay() {
+  let title, desc;
+  if (winner === -1) {
+    title = '🤝 무승부';
+    desc = '판이 가득 찼습니다 — 승부를 가리지 못했습니다.';
+  } else {
+    title = `🏆 ${winner === P1 ? '🔴 빨강' : '🟡 노랑'} ${resigned ? '기권승' : '승리'}!`;
+    desc = `${playerLabel(winner)} — 총 ${moves.length}수`;
+  }
+  showOverlay(title, desc, [
+    ['새 대국', () => newGame()],
+    ['판 보기', hideOverlay],
+  ]);
+}
+
+// ---- 렌더링 ----
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+const CELL = 72, PAD = 14, TOP = 78;               // TOP = 낙하 예고 존 높이
+const BW = COLS * CELL, BH = ROWS * CELL;          // 보드 프레임 크기 504×432
+const W = BW + PAD * 2, HGT = TOP + BH + PAD;      // 캔버스 532×524
+const HR = 29, SR = 31;                            // 구멍/돌 반지름 (돌 > 구멍 — 틈 없이 채움)
+const dpr = window.devicePixelRatio || 1;
+canvas.width = W * dpr;
+canvas.height = HGT * dpr;
+canvas.style.width = W + 'px';
+// height는 CSS의 height:auto가 비율 유지 — 인라인 고정값을 주면 모바일에서 찌그러짐
+ctx.scale(dpr, dpr);
+
+function colX(c) { return PAD + c * CELL + CELL / 2; }
+function rowY(r) { return TOP + r * CELL + CELL / 2; }
+
+function rr(x, y, w, h, rad) {
+  ctx.moveTo(x + rad, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rad);
+  ctx.arcTo(x + w, y + h, x, y + h, rad);
+  ctx.arcTo(x, y + h, x, y, rad);
+  ctx.arcTo(x, y, x + w, y, rad);
+  ctx.closePath();
+}
+
+function drawDisc(cx, cy, color, alpha) {
+  ctx.save();
+  if (alpha !== undefined) ctx.globalAlpha = alpha;
+  const g = ctx.createRadialGradient(cx - SR * 0.32, cy - SR * 0.32, SR * 0.12, cx, cy, SR);
+  if (color === P1) {
+    g.addColorStop(0, '#ff9184');
+    g.addColorStop(0.65, '#dd3d2b');
+    g.addColorStop(1, '#9c1e12');
+  } else {
+    g.addColorStop(0, '#ffe89a');
+    g.addColorStop(0.65, '#f0b32c');
+    g.addColorStop(1, '#a97a0e');
+  }
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(cx, cy, SR, 0, Math.PI * 2);
+  ctx.fill();
+  // 디스크 홈(장식 링)
+  ctx.strokeStyle = 'rgba(0,0,0,.2)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, SR * 0.62, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function draw() {
+  // 배경 + 구멍 안쪽(보드 뒤판)
+  ctx.fillStyle = '#141821';
+  ctx.fillRect(0, 0, W, HGT);
+  ctx.fillStyle = '#0d1119';
+  ctx.fillRect(PAD, TOP, BW, BH);
+
+  const hoverOk = !winner && !anim && hoverCol >= 0 && !aiInputLocked();
+  const hoverRow = hoverOk ? RULES.landingRow(board, hoverCol) : -1;
+
+  // 호버 열 하이라이트 (상단 존)
+  if (hoverOk && hoverRow >= 0) {
+    ctx.fillStyle = 'rgba(212,162,78,.08)';
+    ctx.fillRect(PAD + hoverCol * CELL, 0, CELL, TOP);
+  }
+
+  // ---- 프레임 뒤 레이어: 안착 돌 + 착지 미리보기 + 낙하 중 디스크 ----
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const v = board[r * COLS + c];
+      if (v === EMPTY) continue;
+      if (anim && anim.row === r && anim.col === c) continue;   // 낙하 중인 돌은 아래서 별도 렌더
+      drawDisc(colX(c), rowY(r), v);
+    }
+  }
+  if (hoverOk && hoverRow >= 0) drawDisc(colX(hoverCol), rowY(hoverRow), turn, 0.35);   // 떨어질 위치 미리보기
+  if (anim) {
+    const y0 = TOP / 2, y1 = rowY(anim.row);
+    drawDisc(colX(anim.col), y0 + (y1 - y0) * anim.p, anim.color);
+  }
+
+  // ---- 프레임 (구멍 펀칭 — 뒤 레이어가 구멍으로만 보임) ----
+  const g = ctx.createLinearGradient(0, TOP, 0, TOP + BH);
+  g.addColorStop(0, '#2e5fb3');
+  g.addColorStop(1, '#1c3f7d');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  rr(PAD, TOP, BW, BH, 14);
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      ctx.moveTo(colX(c) + HR, rowY(r));
+      ctx.arc(colX(c), rowY(r), HR, 0, Math.PI * 2);
+    }
+  }
+  ctx.fill('evenodd');
+  ctx.strokeStyle = 'rgba(255,255,255,.08)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  rr(PAD, TOP, BW, BH, 14);
+  ctx.stroke();
+  // 구멍 테두리(깊이감)
+  ctx.strokeStyle = 'rgba(0,0,0,.4)';
+  ctx.lineWidth = 2;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      ctx.beginPath();
+      ctx.arc(colX(c), rowY(r), HR - 0.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // ---- 프레임 위 레이어 ----
+  // 상단 존 부유 디스크 (다음 착수 미리보기)
+  if (hoverOk && hoverRow >= 0) drawDisc(colX(hoverCol), TOP / 2, turn, 0.9);
+
+  // 마지막 수 표시
+  if (moves.length > 0 && !winLine && !anim) {
+    const last = moves[moves.length - 1];
+    ctx.strokeStyle = last.color === P1 ? '#ffd9d3' : '#6b4d00';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(colX(last.col), rowY(last.row), SR * 0.28, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // 승리 라인 강조
+  if (winLine && !anim) {
+    ctx.strokeStyle = '#4fc3f7';
+    ctx.lineWidth = 3.5;
+    for (const [r, c] of winLine) {
+      ctx.beginPath();
+      ctx.arc(colX(c), rowY(r), SR * 0.55, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+}
+
+function eventToCol(e) {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (W / rect.width);
+  const col = Math.floor((x - PAD) / CELL);
+  return col >= 0 && col < COLS ? col : -1;
+}
+
+canvas.addEventListener('click', e => {
+  if (aiInputLocked()) return;      // AI 차례엔 입력 무시
+  tryDrop(eventToCol(e));
+});
+canvas.addEventListener('mousemove', e => {
+  const col = eventToCol(e);
+  if (col !== hoverCol) { hoverCol = col; draw(); }
+});
+canvas.addEventListener('mouseleave', () => { hoverCol = -1; draw(); });
+
+document.getElementById('undoBtn').addEventListener('click', undo);
+document.getElementById('resignBtn').addEventListener('click', resign);
+document.getElementById('newBtn').addEventListener('click', newGame);
+
+// 설정 select는 "새 대국부터 적용" — 진행 중 대국을 파기하지 않음
+function gameInProgress() { return moves.length > 0 && !winner; }
+function onSettingChange() {
+  if (gameInProgress()) {
+    setNotice('변경한 설정은 다음 "새 대국"부터 적용됩니다.');
+  } else {
+    newGame();
+  }
+}
+document.getElementById('oppSel').addEventListener('change', () => {
+  document.getElementById('mySideSel').style.display =
+    document.getElementById('oppSel').value === 'human' ? 'none' : '';
+  onSettingChange();
+});
+document.getElementById('mySideSel').addEventListener('change', onSettingChange);
+
+function playerLabel(color) {
+  const name = color === P1 ? '빨강' : '노랑';
+  if (isAiGame()) return `${name} (${color === aiColor ? 'AI' : '나'})`;
+  return name;
+}
+
+function updateUI() {
+  const status = document.getElementById('status');
+  if (winner === -1) {
+    status.innerHTML = '🤝 무승부 — 판이 가득 찼습니다';
+  } else if (winner) {
+    status.innerHTML = `🏆 ${winner === P1 ? '🔴' : '🟡'} ${playerLabel(winner)} ${resigned ? '기권승!' : '승리!'}`;
+  } else if (isAiGame() && (aiThinking || turn === aiColor)) {
+    status.innerHTML = '🤖 AI 생각 중…';
+  } else {
+    status.innerHTML = `<span class="turn-dot ${turn === P1 ? 'red' : 'yellow'}"></span> ${playerLabel(turn)} 차례`;
+  }
+  document.getElementById('infoBar').innerHTML =
+    `<span>수순 <b>${moves.length}</b></span>` +
+    `<span>선공 <b>🔴 빨강</b></span>` +
+    (isAiGame() ? `<span>상대 <b>AI ${AI_LEVEL_NAMES[opponent]}</b> · 내 돌 ${mySide === P1 ? '🔴' : '🟡'}</span>` : '');
+  document.getElementById('undoBtn').disabled = !!anim || aiThinking ||
+    (isAiGame()
+      ? (!resigned && (!moves.some(m => m.color === mySide) || (!winner && turn === aiColor)))
+      : (!resigned && moves.length === 0));
+  document.getElementById('resignBtn').disabled = !!winner;
+  document.getElementById('hintText').textContent =
+    '열을 클릭(터치)하면 돌이 그 열의 맨 아래 빈 칸으로 떨어집니다. ' +
+    '가로·세로·대각선으로 4개를 먼저 이으면 승리 — 판이 가득 차면 무승부입니다. 🔴 빨강이 선공입니다.';
+}
+
+// ==================== AI 엔진 ====================
+// 비트보드(BigInt) + 알파베타 + 반복심화 + 트랜스포지션 테이블.
+// 순수 JS 모듈 — Web Worker와 메인 스레드(폴백/테스트) 겸용.
+// Worker에는 samokEngineModule.toString()으로 소스를 넘긴다.
+/* __SAMOK_ENGINE_START__ */
+function samokEngineModule() {
+  'use strict';
+  var COLS = 7, ROWS = 6, H = 7;          // H = 열당 비트 수 (6행 + 센티널 1) — 비트 index = col*7 + row(0=맨 아래)
+  var WIN = 1000000;
+  var ORDER = [3, 2, 4, 1, 5, 0, 6];      // 중앙 우선 착수 순서
+  var BOTTOM = 0n, BOARD = 0n, COLBIT = [];
+  (function () {
+    for (var c = 0; c < COLS; c++) {
+      var base = BigInt(c * H);
+      BOTTOM |= 1n << base;
+      COLBIT.push(((1n << BigInt(ROWS)) - 1n) << base);
+      BOARD |= COLBIT[c];
+    }
+  })();
+  var CENTER = COLBIT[3], NEARC = COLBIT[2] | COLBIT[4];
+  var deadline = 0, aborted = false, nodes = 0;
+  // TT: key = Number(pos + mask) — 위치 고유 인코딩(53비트 내).
+  // 엔트리는 32비트 정수로 패킹(GC 회피): v+2^20(21비트) | f<<21(2비트) | (m+1)<<23(3비트) | d<<26(6비트)
+  var TT = new Map();
+  var V_BIAS = 1048576;
+
+  function popcount(x) {
+    var lo = Number(x & 0xFFFFFFFFn), hi = Number(x >> 32n), n;
+    lo = lo - ((lo >> 1) & 0x55555555);
+    lo = (lo & 0x33333333) + ((lo >> 2) & 0x33333333);
+    n = (((lo + (lo >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
+    hi = hi - ((hi >> 1) & 0x55555555);
+    hi = (hi & 0x33333333) + ((hi >> 2) & 0x33333333);
+    n += (((hi + (hi >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
+    return n;
+  }
+
+  // pos가 한 수로 4연결을 완성하는 빈칸 비트맵 (가로 7 / 세로 1 / 대각 6·8 시프트)
+  function winSpots(pos, mask) {
+    var r = (pos << 1n) & (pos << 2n) & (pos << 3n);   // 세로 (아래 3연결 위)
+    var p;
+    p = (pos << 7n) & (pos << 14n);                    // 가로
+    r |= p & (pos << 21n);
+    r |= p & (pos >> 7n);
+    p = (pos >> 7n) & (pos >> 14n);
+    r |= p & (pos << 7n);
+    r |= p & (pos >> 21n);
+    p = (pos << 6n) & (pos << 12n);                    // 대각 (열+1, 행-1)
+    r |= p & (pos << 18n);
+    r |= p & (pos >> 6n);
+    p = (pos >> 6n) & (pos >> 12n);
+    r |= p & (pos << 6n);
+    r |= p & (pos >> 18n);
+    p = (pos << 8n) & (pos << 16n);                    // 대각 (열+1, 행+1)
+    r |= p & (pos << 24n);
+    r |= p & (pos >> 8n);
+    p = (pos >> 8n) & (pos >> 16n);
+    r |= p & (pos << 8n);
+    r |= p & (pos >> 24n);
+    return r & (BOARD ^ mask);                         // 빈칸만
+  }
+
+  // 리프 평가 (둘 차례 쪽 관점): 3연결 위협(승리 예약 칸) 수 + 중앙열 선호
+  function evaluate(pos, mask) {
+    var opp = pos ^ mask;
+    return (popcount(winSpots(pos, mask)) - popcount(winSpots(opp, mask))) * 12 +
+           (popcount(pos & CENTER) - popcount(opp & CENTER)) * 6 +
+           (popcount(pos & NEARC) - popcount(opp & NEARC)) * 2;
+  }
+
+  // 네가맥스 + 알파베타. pos = 둘 차례 쪽 돌, mask = 전체 돌. 반환값은 둘 차례 쪽 관점.
+  function negamax(pos, mask, depth, alpha, beta, ply) {
+    if ((++nodes & 511) === 0 && deadline && Date.now() > deadline) { aborted = true; return 0; }
+    if (mask === BOARD) return 0;                      // 무승부
+    var possible = (mask + BOTTOM) & BOARD;            // 각 열의 착지 칸 비트맵
+    if ((winSpots(pos, mask) & possible) !== 0n) return WIN - ply - 1;   // 즉승
+    var opp = pos ^ mask;
+    var oWin = winSpots(opp, mask);
+    var forced = oWin & possible;
+    var cand = possible;
+    if (forced !== 0n) {
+      if ((forced & (forced - 1n)) !== 0n) return -(WIN - ply - 2);      // 이중 즉승 위협 — 패배 확정
+      cand = forced;                                   // 유일한 방어수 강제
+    }
+    cand &= ~(oWin >> 1n);                             // 상대 승리칸 바로 아래는 자살수 — 제외
+    if (cand === 0n) return -(WIN - ply - 2);
+    if (depth <= 0) return evaluate(pos, mask);
+
+    var key = Number(pos + mask), e = TT.get(key), ttMove = -1;
+    if (e !== undefined) {
+      var ev = (e & 0x1FFFFF) - V_BIAS, ef = (e >> 21) & 3;
+      if ((e >>> 26) >= depth) {
+        if (ef === 0) return ev;
+        if (ef === 1) { if (ev > alpha) alpha = ev; }
+        else if (ev < beta) beta = ev;
+        if (alpha >= beta) return ev;
+      }
+      ttMove = ((e >> 23) & 7) - 1;
+    }
+
+    var best = -Infinity, bestMove = -1, a0 = alpha, i, c, bit, v;
+    for (i = -1; i < COLS; i++) {
+      c = i < 0 ? ttMove : ORDER[i];
+      if (c < 0 || (i >= 0 && c === ttMove)) continue;
+      bit = cand & COLBIT[c];
+      if (bit === 0n) continue;
+      v = -negamax(opp, mask | bit, depth - 1, -beta, -alpha, ply + 1);
+      if (aborted) return 0;
+      if (v > best) { best = v; bestMove = c; }
+      if (v > alpha) alpha = v;
+      if (alpha >= beta) break;
+    }
+    if (best === -Infinity) return evaluate(pos, mask);   // 안전망 (cand≠0이라 도달 불가)
+    if (depth >= 2) {                     // 얕은 노드는 저장 비용이 이득보다 큼
+      if (TT.size > 2000000) TT.clear();
+      TT.set(key, (best + V_BIAS) | ((best <= a0 ? 2 : (best >= beta ? 1 : 0)) << 21) |
+                  ((bestMove + 1) << 23) | (depth << 26));
+    }
+    return best;
+  }
+
+  // 루트 탐색 — 시간 초과로 중단돼도 완료된 후보까지의 최선을 반환
+  function searchRoot(pos, mask, depth, ply, cols) {
+    var opp = pos ^ mask, possible = (mask + BOTTOM) & BOARD;
+    var alpha = -Infinity, best = -Infinity, bestCol = cols[0], i, v, bit;
+    for (i = 0; i < cols.length; i++) {
+      bit = possible & COLBIT[cols[i]];
+      v = -negamax(opp, mask | bit, depth - 1, -Infinity, -alpha, ply + 1);
+      if (aborted) break;
+      if (v > best) { best = v; bestCol = cols[i]; }
+      if (v > alpha) alpha = v;
+    }
+    return { col: bestCol, v: best };
+  }
+
+  // 메인 진입점: 열 번호(0~6) 반환. boardIn은 행 우선 배열(행 0 = 맨 위), turnColor = 1|2.
+  // opts.timeMs로 시간 예산 재정의 가능(테스트용).
+  function findBestMove(boardIn, turnColor, level, opts) {
+    var pos = 0n, mask = 0n, r, c, i, v;
+    for (r = 0; r < ROWS; r++) {
+      for (c = 0; c < COLS; c++) {
+        v = boardIn[r * COLS + c];
+        if (!v) continue;
+        var bit = 1n << BigInt(c * H + (ROWS - 1 - r));
+        mask |= bit;
+        if (v === turnColor) pos |= bit;
+      }
+    }
+    var possible = (mask + BOTTOM) & BOARD;
+    if (possible === 0n) return -1;
+    var legal = [];
+    for (i = 0; i < COLS; i++) if ((possible & COLBIT[ORDER[i]]) !== 0n) legal.push(ORDER[i]);
+
+    // (a) 즉승 — 내가 4를 완성할 수 있으면 반드시 둔다
+    var mine = winSpots(pos, mask) & possible;
+    if (mine !== 0n)
+      for (i = 0; i < legal.length; i++) if ((mine & COLBIT[legal[i]]) !== 0n) return legal[i];
+
+    // (b) 즉방어 — 상대가 다음 수에 4를 완성하면 반드시 막는다
+    var opp = pos ^ mask;
+    var oWin = winSpots(opp, mask);
+    var oNow = oWin & possible;
+    if (oNow !== 0n)
+      for (i = 0; i < legal.length; i++) if ((oNow & COLBIT[legal[i]]) !== 0n) return legal[i];
+
+    // 쉬움: 1수 탐욕(내 위협 수 + 중앙 선호, 자살수 감점) + 상위 3개 가중 랜덤
+    if (level === 'easy') {
+      var scored = [], s, bit3;
+      for (i = 0; i < legal.length; i++) {
+        c = legal[i];
+        bit3 = possible & COLBIT[c];
+        s = popcount(winSpots(pos | bit3, mask | bit3)) * 4 + (3 - Math.abs(c - 3));
+        if ((bit3 & (oWin >> 1n)) !== 0n) s -= 100;    // 상대 승리칸 바로 아래 — 자살수
+        scored.push([s, c]);
+      }
+      scored.sort(function (a, b) { return b[0] - a[0]; });
+      var top = scored.slice(0, 3), Wt = [4, 2, 1], tot = 0, rnd;
+      for (i = 0; i < top.length; i++) tot += Wt[i];
+      rnd = Math.random() * tot;
+      for (i = 0; i < top.length; i++) { rnd -= Wt[i]; if (rnd <= 0) return top[i][1]; }
+      return top[0][1];
+    }
+
+    // 자살수 회피 후보 (전부 자살수면 어쩔 수 없이 전체)
+    var rootCols = [], unsafe = [];
+    for (i = 0; i < legal.length; i++) {
+      if (((possible & COLBIT[legal[i]]) & (oWin >> 1n)) !== 0n) unsafe.push(legal[i]);
+      else rootCols.push(legal[i]);
+    }
+    if (rootCols.length === 0) rootCols = unsafe;
+    if (rootCols.length === 1) return rootCols[0];
+
+    // 반복 심화 (시간 예산 내에서 depth 2 → 3 → … · TT 재사용 · 이전 최선수 우선 정렬)
+    var budget = (opts && opts.timeMs) || (level === 'hard' ? 950 : 300);
+    var maxD = level === 'hard' ? 42 - popcount(mask) : 6;
+    TT.clear();
+    aborted = false;
+    nodes = 0;
+    deadline = Date.now() + budget;
+    var ply0 = popcount(mask), bestCol = rootCols[0], completed = false, res, d;
+    for (d = 2; d <= maxD; d++) {
+      res = searchRoot(pos, mask, d, ply0, rootCols);
+      if (aborted) { if (!completed) bestCol = res.col; break; }
+      bestCol = res.col;
+      completed = true;
+      if (res.v > WIN - 200 || res.v < -(WIN - 200)) break;   // 승/패 확정 — 더 볼 필요 없음
+      rootCols.splice(rootCols.indexOf(bestCol), 1);
+      rootCols.unshift(bestCol);
+    }
+    deadline = 0;
+    return bestCol;
+  }
+
+  return { findBestMove: findBestMove };
+}
+/* __SAMOK_ENGINE_END__ */
+
+// ==================== AI 플러밍 (Worker + 폴백) ====================
+const AI_LEVEL_NAMES = { easy: '쉬움', normal: '보통', hard: '어려움' };
+function isAiGame() { return opponent !== 'human'; }
+function aiTurnNow() { return isAiGame() && !winner && turn === aiColor; }
+function aiInputLocked() { return isAiGame() && !winner && (aiThinking || turn === aiColor); }
+
+let aiWorker = null, aiWorkerFailed = false, aiLocalEngine = null;
+
+function ensureWorker() {
+  if (aiWorker || aiWorkerFailed) return;
+  try {
+    const src = samokEngineModule.toString() +
+      '\nvar __E = samokEngineModule();' +
+      '\nonmessage = function (e) { var d = e.data;' +
+      ' postMessage({ col: __E.findBestMove(d.board, d.turn, d.level), token: d.token }); };';
+    aiWorker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+    aiWorker.onmessage = e => handleAiResponse(e.data.col, e.data.token);
+    aiWorker.onerror = () => {              // 워커 실패(file:// 제약 등) → 메인 스레드 폴백
+      aiWorkerFailed = true;
+      try { aiWorker.terminate(); } catch (_) {}
+      aiWorker = null;
+      if (aiThinking) runAiLocal(aiMoveToken);
+    };
+  } catch (_) {
+    aiWorkerFailed = true;
+    aiWorker = null;
+  }
+}
+
+function runAiLocal(token) {
+  setTimeout(() => {
+    if (token !== aiMoveToken) return;
+    if (!aiLocalEngine) aiLocalEngine = samokEngineModule();
+    handleAiResponse(aiLocalEngine.findBestMove(Array.from(board), turn, opponent), token);
+  }, 30);
+}
+
+function maybeTriggerAI() {
+  if (!aiTurnNow() || aiThinking || anim) return;
+  aiThinking = true;
+  aiThinkStart = performance.now();
+  const token = ++aiMoveToken;
+  updateUI();
+  ensureWorker();
+  if (aiWorker) aiWorker.postMessage({ board: Array.from(board), turn, level: opponent, token });
+  else runAiLocal(token);
+}
+
+function handleAiResponse(col, token) {
+  if (token !== aiMoveToken) return;
+  // 너무 즉답이면 어색하니 최소 350ms 유지
+  const wait = Math.max(0, 350 - (performance.now() - aiThinkStart));
+  setTimeout(() => applyAiMove(col, token), wait);
+}
+
+function applyAiMove(col, token) {
+  if (token !== aiMoveToken) return;
+  if (anim) { setTimeout(() => applyAiMove(col, token), 120); return; }   // 낙하 연출 끝까지 대기
+  aiThinking = false;
+  if (aiTurnNow()) {
+    let mv = (typeof col === 'number' && col >= 0 && col < COLS && RULES.landingRow(board, col) >= 0) ? col : -1;
+    if (mv < 0) {                          // 안전망: 엔진 수가 무효면 첫 합법 열
+      const legal = RULES.legalCols(board);
+      if (legal.length > 0) mv = legal[0];
+    }
+    if (mv >= 0) { tryDrop(mv); return; }
+  }
+  updateUI();
+  draw();
+}
+
+newGame();
+</script>
+</body>
+</html>

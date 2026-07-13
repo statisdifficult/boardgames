@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>요트다이스</title>
+<style>
+  :root {
+    --bg: #1a1d24;
+    --panel: #242832;
+    --text: #e8e6e0;
+    --muted: #9a9788;
+    --accent: #d4a24e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Apple SD Gothic Neo", "Pretendard", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px 16px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 4px; text-align: center; }
+  #status {
+    margin: 14px 0 4px;
+    font-size: 16px;
+    font-weight: 600;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+  }
+  #status b { color: var(--accent); }
+  #notice {
+    min-height: 20px;
+    font-size: 13px;
+    color: var(--accent);
+    margin-bottom: 4px;
+    text-align: center;
+    max-width: 560px;
+  }
+  .dice-area { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-top: 8px; }
+  .dice-row { display: flex; gap: 14px; perspective: 700px; padding-bottom: 20px; }
+  .die {
+    width: 62px; height: 62px;
+    background: linear-gradient(145deg, #faf8f2, #d9d4c4);
+    border-radius: 12px;
+    position: relative;
+    cursor: pointer;
+    box-shadow: inset -2px -3px 6px rgba(0,0,0,.15), 0 4px 10px rgba(0,0,0,.45);
+    transition: transform .18s, outline-color .18s, opacity .18s;
+    transform-style: preserve-3d;
+    touch-action: manipulation;
+    outline: 3px solid transparent;
+  }
+  .die.idle { opacity: .4; }
+  .die.held { outline-color: var(--accent); transform: translateY(7px); }
+  .die.rolling { animation: diceRoll .6s ease-out; }
+  @keyframes diceRoll {
+    0%   { transform: rotateX(0deg)   rotateY(0deg)   rotateZ(0deg)  scale(1); }
+    40%  { transform: rotateX(230deg) rotateY(160deg) rotateZ(40deg) scale(1.18); }
+    100% { transform: rotateX(720deg) rotateY(360deg) rotateZ(0deg)  scale(1); }
+  }
+  .die .pip {
+    position: absolute;
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: #23252b;
+    transform: translate(-50%, -50%);
+    box-shadow: inset 0 2px 2px rgba(0,0,0,.5);
+  }
+  .die .tag {
+    position: absolute;
+    left: 50%; bottom: -19px;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: var(--accent);
+    font-weight: 700;
+    opacity: 0;
+    transition: opacity .15s;
+    pointer-events: none;
+  }
+  .die.held .tag { opacity: 1; }
+  .sheetWrap { max-width: 100%; overflow-x: auto; margin-top: 12px; border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,.35); }
+  table.sheet { border-collapse: collapse; background: var(--panel); font-size: 13px; }
+  .sheet th, .sheet td { border: 1px solid #3a3f4d; padding: 6px 10px; text-align: center; min-width: 54px; }
+  .sheet th { background: #2b303c; font-weight: 700; }
+  .sheet th.cur { color: var(--accent); }
+  .sheet td.cat { text-align: left; min-width: 132px; font-size: 12.5px; line-height: 1.3; }
+  .sheet td.cat small { color: var(--muted); font-size: 10.5px; display: block; }
+  .sheet td.curcol { background: rgba(212,162,78,.08); }
+  .sheet td.filled { font-weight: 700; }
+  .sheet td.zero { color: #c96a6a; font-weight: 700; }
+  .sheet td.preview { color: #6f7684; }
+  .sheet td.clickable { cursor: pointer; }
+  .sheet td.clickable:hover { background: rgba(212,162,78,.28); color: var(--accent); }
+  .sheet tr.sumrow td { background: #20242e; color: var(--muted); font-size: 12px; }
+  .sheet tr.totrow td { background: #20242e; color: var(--accent); font-weight: 700; }
+  .bar {
+    display: flex;
+    gap: 20px;
+    margin-top: 14px;
+    background: var(--panel);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .bar b { color: var(--accent); }
+  .controls { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; justify-content: center; align-items: center; }
+  button {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background .15s;
+  }
+  button:hover { background: #2f3442; }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent); color: #1a1d24; border-color: var(--accent); font-weight: 700; }
+  button.primary:hover:not(:disabled) { background: #e0b160; }
+  select {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 10px; max-width: 560px; text-align: center; line-height: 1.6; }
+  a.home { color: var(--muted); font-size: 12px; margin-top: 16px; text-decoration: none; }
+  a.home:hover { color: var(--accent); }
+  #overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,17,22,.97);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    text-align: center;
+    padding: 24px;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 22px; margin-bottom: 12px; }
+  #overlay p { color: var(--muted); font-size: 15px; line-height: 1.7; max-width: 440px; white-space: pre-line; }
+  #overlayBtns { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; min-width: 280px; }
+  @media (max-width: 600px) {
+    body { padding: 12px 8px; }
+    h1 { font-size: 18px; }
+    .sub { font-size: 12px; }
+    #status { font-size: 14px; }
+    #notice { font-size: 12px; }
+    .dice-row { gap: 9px; padding-bottom: 17px; }
+    .die { width: 48px; height: 48px; border-radius: 9px; outline-width: 2.5px; }
+    .die .pip { width: 8.5px; height: 8.5px; }
+    .die .tag { bottom: -16px; font-size: 9px; }
+    table.sheet { font-size: 11px; }
+    .sheet th, .sheet td { padding: 4px 5px; min-width: 38px; }
+    .sheet td.cat { min-width: 98px; font-size: 10.5px; }
+    .sheet td.cat small { font-size: 9px; }
+    .bar { gap: 10px; padding: 8px 12px; font-size: 12px; }
+    .controls { gap: 6px; }
+    button, select { padding: 8px 12px; font-size: 13px; }
+    .hint { font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+  <h1>요트다이스 <span>Yacht Dice</span></h1>
+  <div class="sub">주사위 5개 × 12라운드 족보 게임 · 1~4인 사람/AI 혼합 · 솔로 기록 도전</div>
+
+  <div id="status"></div>
+  <div id="notice"></div>
+
+  <div class="dice-area">
+    <div class="dice-row" id="diceRow"></div>
+    <button id="rollBtn" class="primary">🎲 굴리기</button>
+  </div>
+
+  <div class="sheetWrap"><table class="sheet" id="sheetTbl"></table></div>
+
+  <div class="bar" id="infoBar"></div>
+
+  <div class="controls">
+    <select id="pcountSel" title="새 게임부터 적용">
+      <option value="1">1인 — 솔로 기록 도전</option>
+      <option value="2" selected>2인</option>
+      <option value="3">3인</option>
+      <option value="4">4인</option>
+    </select>
+    <select id="ptypeSel0" title="새 게임부터 적용">
+      <option value="human" selected>P1: 사람</option>
+      <option value="ai">P1: AI</option>
+    </select>
+    <select id="ptypeSel1" title="새 게임부터 적용">
+      <option value="human">P2: 사람</option>
+      <option value="ai" selected>P2: AI</option>
+    </select>
+    <select id="ptypeSel2" title="새 게임부터 적용">
+      <option value="human">P3: 사람</option>
+      <option value="ai" selected>P3: AI</option>
+    </select>
+    <select id="ptypeSel3" title="새 게임부터 적용">
+      <option value="human">P4: 사람</option>
+      <option value="ai" selected>P4: AI</option>
+    </select>
+    <button id="newBtn">새 게임</button>
+  </div>
+
+  <div class="hint">매 턴 주사위를 최대 3회 굴립니다 — 굴림 사이에 주사위를 클릭하면 고정/해제.
+    굴린 뒤에는 점수표 12항목 중 반드시 한 곳에 기입해야 합니다(조건 미달이면 0점 마킹).
+    회색 숫자는 현재 주사위로 받을 점수 미리보기.
+    상단(에이스~식스) 합계 63점 이상이면 보너스 +35점.
+    관용 룰: 요트(5개 동일)는 풀하우스로도 인정됩니다.</div>
+  <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <div id="overlay">
+    <h2 id="overlayTitle"></h2>
+    <p id="overlayDesc"></p>
+    <div id="overlayBtns"></div>
+  </div>
+
+<script>
+// ==================== 게임 코어 (순수 로직 — JXA 테스트에서 추출) ====================
+/* __YACHT_CORE_START__ */
+function yachtCoreModule() {
+  'use strict';
+  // 항목 인덱스: 0~5 상단(에이스~식스), 6 초이스, 7 포카드, 8 풀하우스,
+  //             9 스몰 스트레이트, 10 라지 스트레이트, 11 요트
+  var NCAT = 12;
+
+  function counts(dice) {
+    var c = [0, 0, 0, 0, 0, 0, 0];
+    for (var i = 0; i < 5; i++) c[dice[i]]++;
+    return c;
+  }
+  function sumDice(dice) {
+    var s = 0;
+    for (var i = 0; i < 5; i++) s += dice[i];
+    return s;
+  }
+
+  function scoreCategory(cat, dice) {
+    var c = counts(dice), s = sumDice(dice), v;
+    if (cat >= 0 && cat < 6) return c[cat + 1] * (cat + 1);          // 해당 눈 합
+    if (cat === 6) return s;                                          // 초이스: 전체 합
+    if (cat === 7) {                                                  // 포카드: 같은 눈 4개 이상 → 전체 합
+      for (v = 1; v <= 6; v++) if (c[v] >= 4) return s;
+      return 0;
+    }
+    if (cat === 8) {                                                  // 풀하우스: 3+2 → 전체 합
+      var has3 = false, has2 = false, five = false;
+      for (v = 1; v <= 6; v++) {
+        if (c[v] === 5) five = true;
+        if (c[v] === 3) has3 = true;
+        if (c[v] === 2) has2 = true;
+      }
+      return (five || (has3 && has2)) ? s : 0;                        // 관용 룰: 요트(5개 동일)도 풀하우스 인정
+    }
+    if (cat === 9) {                                                  // 스몰 스트레이트: 4연속 → 15점 (중복 눈 무관)
+      for (v = 1; v <= 3; v++)
+        if (c[v] > 0 && c[v + 1] > 0 && c[v + 2] > 0 && c[v + 3] > 0) return 15;
+      return 0;
+    }
+    if (cat === 10) {                                                 // 라지 스트레이트: 5연속 → 30점
+      for (v = 1; v <= 2; v++)
+        if (c[v] > 0 && c[v + 1] > 0 && c[v + 2] > 0 && c[v + 3] > 0 && c[v + 4] > 0) return 30;
+      return 0;
+    }
+    if (cat === 11) {                                                 // 요트: 5개 동일 → 50점
+      for (v = 1; v <= 6; v++) if (c[v] === 5) return 50;
+      return 0;
+    }
+    return 0;
+  }
+
+  function upperSum(sheet) {
+    var s = 0;
+    for (var i = 0; i < 6; i++) if (sheet[i] !== null) s += sheet[i];
+    return s;
+  }
+  function upperBonus(sheet) { return upperSum(sheet) >= 63 ? 35 : 0; }
+  function totalScore(sheet) {
+    var s = upperSum(sheet) + upperBonus(sheet);
+    for (var i = 6; i < 12; i++) if (sheet[i] !== null) s += sheet[i];
+    return s;
+  }
+
+  // ==================== AI (기댓값 기반 휴리스틱) ====================
+  // 항목별 기준 기댓값(기회비용) — 남은 항목에 쓰는 것이 평균적으로 얼마나 가치 있는가
+  var BASE_EV = [1.9, 3.8, 5.7, 7.6, 9.5, 11.4, 21, 13, 14, 9.5, 7.8, 2.8];
+
+  function binomTail(n, p, k) {           // n번 시행(성공률 p) 중 k번 이상 성공할 확률
+    if (k <= 0) return 1;
+    if (k > n) return 0;
+    var q = 1 - p, total = 0, j, t, comb;
+    for (j = k; j <= n; j++) {
+      comb = 1;
+      for (t = 0; t < j; t++) comb = comb * (n - t) / (t + 1);
+      total += comb * Math.pow(p, j) * Math.pow(q, n - j);
+    }
+    return total;
+  }
+  // 자유 주사위 n개를 r회(성공분 홀드 유지) 굴려 서로 다른 특정 눈 m개를 모두 얻을 확률(근사)
+  function pDistinct(m, n, r) {
+    if (m <= 0) return 1;
+    if (m > n) return 0;
+    var P = 1;
+    for (var i = 0; i < m; i++) P *= 1 - Math.pow(5 / 6, (n - i) * r);
+    return P;
+  }
+
+  // 홀드 후보(held = 고정한 주사위 값 배열)의 가치 — 남은 굴림 r회 기준.
+  // 각 미기입 항목의 기대 점수에서 기준 기댓값(BASE_EV)을 빼 기회비용을 반영하고,
+  // 최선 + 차선×0.1 로 "겸사겸사 노리는" 족보(예: 스몰 확보 후 라지 도전)를 우대.
+  function estHeldEV(held, r, sheet) {
+    var best = -1e9, second = -1e9;
+    function consider(cat, est) {
+      var val = est - BASE_EV[cat];
+      if (val > best) { second = best; best = val; }
+      else if (val > second) second = val;
+    }
+    var i, v, cat, ev;
+    var n = 5 - held.length;
+
+    if (n === 0) {                        // 전부 홀드 = 지금 주사위 그대로 기입 — 정확한 점수 사용
+      for (cat = 0; cat < NCAT; cat++)
+        if (sheet[cat] === null) consider(cat, scoreCategory(cat, held));
+      return best + 0.1 * Math.max(0, second);
+    }
+
+    var hc = [0, 0, 0, 0, 0, 0, 0], sumH = 0;
+    for (i = 0; i < held.length; i++) { hc[held[i]]++; sumH += held[i]; }
+    var p = 1 - Math.pow(5 / 6, r);       // 주사위 1개가 r회 안에 특정 눈이 될 확률
+    var mv = 0, mc = 0, distinct = 0;
+    for (v = 1; v <= 6; v++) {
+      if (hc[v] > 0) distinct++;
+      if (hc[v] > mc || (hc[v] === mc && v > mv)) { mc = hc[v]; mv = v; }
+    }
+
+    // 상단 (에이스~식스): 기대 개수 × 눈
+    for (v = 1; v <= 6; v++) {
+      if (sheet[v - 1] !== null) continue;
+      consider(v - 1, Math.min(5, hc[v] + n * p) * v);
+    }
+    // 초이스: 홀드 합 + 자유 주사위 기대치(다시 굴릴수록 높은 눈 유지 가능)
+    if (sheet[6] === null) consider(6, sumH + n * (3.5 + 0.6 * r));
+    // 요트: 같은 눈만 홀드했을 때, 나머지 전부가 그 눈이 될 확률
+    if (sheet[11] === null && mc > 0 && distinct === 1)
+      consider(11, 50 * Math.pow(p, n));
+    // 포카드: 최빈 눈 기준 4개 이상 도달 확률 × 기대 합
+    if (sheet[7] === null && mc > 0)
+      consider(7, binomTail(n, p, 4 - mc) * (4 * mv + 3.5));
+    // 풀하우스
+    if (sheet[8] === null) {
+      var c1 = 0, c2 = 0;
+      for (v = 1; v <= 6; v++) {
+        if (hc[v] >= c1) { c2 = c1; c1 = hc[v]; }
+        else if (hc[v] > c2) c2 = hc[v];
+      }
+      ev = 0;
+      if (c1 === 5 || (c1 >= 3 && c2 >= 2)) ev = sumH;                        // 완성(관용 포함)
+      else if (c1 === 3 && held.length === 3) ev = (r >= 2 ? 0.45 : 0.26) * (sumH + 7);
+      else if (c1 === 2 && c2 === 2 && held.length === 4) ev = (1 - Math.pow(2 / 3, r)) * (sumH + sumH / 4);
+      else if (c1 === 2 && held.length === 2) ev = (r >= 2 ? 0.22 : 0.09) * (sumH * 2.5 + 7);
+      if (ev > 0) consider(8, ev);
+    }
+    // 라지 스트레이트: 중복 없이 목표 눈만 홀드했을 때
+    if (sheet[10] === null && held.length === distinct) {
+      var targets = [[1, 2, 3, 4, 5], [2, 3, 4, 5, 6]];
+      for (i = 0; i < 2; i++) {
+        var t = targets[i], inT = 0, j;
+        for (j = 0; j < 5; j++) if (hc[t[j]] > 0) inT++;
+        if (inT < held.length) continue;                                      // 목표 밖 눈 홀드 → 불가능
+        consider(10, pDistinct(5 - inT, n, r) * 30);
+      }
+    }
+    // 스몰 스트레이트: 4연속 창(1~4, 2~5, 3~6) 중 최선
+    if (sheet[9] === null) {
+      var wins = [[1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6]];
+      for (i = 0; i < 3; i++) {
+        var w = wins[i], have = 0, k;
+        for (k = 0; k < 4; k++) if (hc[w[k]] > 0) have++;
+        consider(9, pDistinct(4 - have, n, r) * 15);
+      }
+    }
+    return best + 0.1 * Math.max(0, second);
+  }
+
+  // 홀드 선택: 32가지 홀드 조합 전수 비교. 내림차순 순회 + 강한 부등호 →
+  // 동률이면 더 많이 고정하는 쪽(전부 고정 = "다시 굴릴 필요 없음" 신호).
+  function aiChooseHold(dice, sheet, rollsLeft) {
+    var bestMask = null, bestEV = -Infinity, m, i;
+    for (m = 31; m >= 0; m--) {
+      var mask = [], held = [];
+      for (i = 0; i < 5; i++) {
+        var h = (m & (1 << i)) !== 0;
+        mask.push(h);
+        if (h) held.push(dice[i]);
+      }
+      var ev = estHeldEV(held, rollsLeft, sheet);
+      if (ev > bestEV + 1e-9) { bestEV = ev; bestMask = mask; }
+    }
+    return bestMask;
+  }
+
+  // 기입 선택: (지금 점수 − 항목 기준 기댓값) 최대화 + 상단 보너스(63/+35) 페이스 반영.
+  // 전부 손해면 가장 덜 아까운 항목에 0점 마킹하는 선택도 자연스럽게 포함.
+  function aiChooseCategory(dice, sheet) {
+    var up = upperSum(sheet);
+    var bestCat = -1, bestVal = -Infinity, cat;
+    for (cat = 0; cat < NCAT; cat++) {
+      if (sheet[cat] !== null) continue;
+      var s = scoreCategory(cat, dice);
+      var val = s - BASE_EV[cat];
+      if (cat < 6 && up < 63) {
+        if (up + s >= 63) val += 35;                       // 이 기입으로 보너스 확정
+        else val += (s - (cat + 1) * 3) * 0.4;             // 눈당 3개 페이스 대비 진도
+      }
+      if (val > bestVal) { bestVal = val; bestCat = cat; }
+    }
+    return bestCat;
+  }
+
+  return {
+    NCAT: NCAT,
+    counts: counts,
+    sumDice: sumDice,
+    scoreCategory: scoreCategory,
+    upperSum: upperSum,
+    upperBonus: upperBonus,
+    totalScore: totalScore,
+    estHeldEV: estHeldEV,
+    aiChooseHold: aiChooseHold,
+    aiChooseCategory: aiChooseCategory
+  };
+}
+/* __YACHT_CORE_END__ */
+
+const Core = yachtCoreModule();
+
+// ==================== UI ====================
+const CAT_INFO = [
+  ['에이스 ⚀', '1 눈의 합'],
+  ['투 ⚁', '2 눈의 합'],
+  ['쓰리 ⚂', '3 눈의 합'],
+  ['포 ⚃', '4 눈의 합'],
+  ['파이브 ⚄', '5 눈의 합'],
+  ['식스 ⚅', '6 눈의 합'],
+  ['초이스', '주사위 전체 합'],
+  ['포카드', '같은 눈 4개+ → 전체 합'],
+  ['풀하우스', '3+2 → 전체 합 (요트 인정)'],
+  ['스몰 스트레이트', '4연속 → 15점'],
+  ['라지 스트레이트', '5연속 → 30점'],
+  ['요트', '5개 동일 → 50점'],
+];
+const BEST_KEY = 'yachtDiceBest';
+
+let players = [];          // { name, short, type: 'human'|'ai', sheet: (number|null)[12] }
+let cur = 0;               // 현재 플레이어
+let round = 1;             // 1..12
+let dice = [1, 2, 3, 4, 5];
+let held = [false, false, false, false, false];
+let rollCount = 0;         // 이번 턴 굴린 횟수 0..3
+let rolling = false;       // 굴림 애니메이션 중
+let gameOver = false;
+let gen = 0;               // 새 게임마다 증가 — 진행 중이던 타이머/AI 체인 무효화
+let scrambleTimer = null;
+let lastFill = '';         // 직전 기입 안내문
+
+// ---- 주사위 DOM ----
+const PIPS = {
+  1: [[50, 50]],
+  2: [[28, 28], [72, 72]],
+  3: [[27, 27], [50, 50], [73, 73]],
+  4: [[29, 29], [71, 29], [29, 71], [71, 71]],
+  5: [[28, 28], [72, 28], [50, 50], [28, 72], [72, 72]],
+  6: [[29, 27], [71, 27], [29, 50], [71, 50], [29, 73], [71, 73]],
+};
+const dieEls = [];
+{
+  const row = document.getElementById('diceRow');
+  for (let i = 0; i < 5; i++) {
+    const d = document.createElement('div');
+    d.className = 'die';
+    d.innerHTML = '<span class="tag">고정</span>';
+    d.addEventListener('click', () => toggleHold(i));
+    row.appendChild(d);
+    dieEls.push(d);
+  }
+}
+function setFace(el, v) {
+  el.querySelectorAll('.pip').forEach(p => p.remove());
+  for (const [x, y] of PIPS[v]) {
+    const p = document.createElement('div');
+    p.className = 'pip';
+    p.style.left = x + '%';
+    p.style.top = y + '%';
+    el.appendChild(p);
+  }
+}
+function renderDice() {
+  for (let i = 0; i < 5; i++) {
+    setFace(dieEls[i], dice[i]);
+    dieEls[i].classList.toggle('held', held[i]);
+    dieEls[i].classList.toggle('idle', rollCount === 0);
+    dieEls[i].classList.remove('rolling');
+  }
+}
+
+// ---- 굴리기 (3D 회전 애니메이션 + 눈 스크램블) ----
+function doRoll(done) {
+  if (rolling || rollCount >= 3 || gameOver) return;
+  rolling = true;
+  const g = gen;
+  setNotice('');
+  for (let i = 0; i < 5; i++) {
+    dieEls[i].classList.remove('idle');
+    if (!held[i]) {
+      dieEls[i].classList.remove('rolling');
+      void dieEls[i].offsetWidth;          // 애니메이션 재시작 트릭
+      dieEls[i].classList.add('rolling');
+    }
+  }
+  scrambleTimer = setInterval(() => {
+    for (let i = 0; i < 5; i++)
+      if (!held[i]) setFace(dieEls[i], 1 + Math.floor(Math.random() * 6));
+  }, 85);
+  renderSheet();
+  updateUI();
+  setTimeout(() => {
+    clearInterval(scrambleTimer);
+    scrambleTimer = null;
+    if (g !== gen) return;
+    for (let i = 0; i < 5; i++)
+      if (!held[i]) dice[i] = 1 + Math.floor(Math.random() * 6);
+    rollCount++;
+    rolling = false;
+    renderDice();
+    renderSheet();
+    updateUI();
+    if (players[cur].type === 'human') {
+      setNotice(rollCount >= 3
+        ? '굴림 끝 — 점수표 한 곳에 반드시 기입하세요 (0점 마킹 가능).'
+        : '주사위를 클릭해 고정하고 다시 굴리거나, 점수표를 클릭해 기입하세요.');
+    }
+    if (done) done();
+  }, 620);
+}
+
+function toggleHold(i) {
+  if (gameOver || rolling) return;
+  if (players[cur].type !== 'human') return;
+  if (rollCount === 0) { setNotice('먼저 주사위를 굴리세요.'); return; }
+  if (rollCount >= 3) { setNotice('굴림이 끝났습니다 — 점수표에 기입하세요.'); return; }
+  held[i] = !held[i];
+  renderDice();
+}
+
+// ---- 점수표 ----
+function buildSheet() {
+  const tbl = document.getElementById('sheetTbl');
+  let html = '<thead><tr><th class="cat">항목</th>';
+  players.forEach((pl, p) => {
+    html += `<th id="ph-${p}">${pl.short}${pl.type === 'ai' ? '🤖' : ''}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+  for (let cat = 0; cat < 12; cat++) {
+    if (cat === 6) {
+      html += `<tr class="sumrow"><td class="cat">상단 합계 <small>63점 이상 → 보너스 +35</small></td>` +
+        players.map((_, p) => `<td id="sub-${p}"></td>`).join('') + '</tr>';
+    }
+    html += `<tr><td class="cat">${CAT_INFO[cat][0]} <small>${CAT_INFO[cat][1]}</small></td>` +
+      players.map((_, p) => `<td id="c-${p}-${cat}" data-p="${p}" data-cat="${cat}"></td>`).join('') + '</tr>';
+  }
+  html += `<tr class="totrow"><td class="cat">총점</td>` +
+    players.map((_, p) => `<td id="tot-${p}"></td>`).join('') + '</tbody>';
+  tbl.innerHTML = html;
+}
+
+function renderSheet() {
+  players.forEach((pl, p) => {
+    const my = p === cur && !gameOver;
+    document.getElementById('ph-' + p).classList.toggle('cur', my);
+    for (let cat = 0; cat < 12; cat++) {
+      const td = document.getElementById(`c-${p}-${cat}`);
+      const v = pl.sheet[cat];
+      let cls = my ? 'curcol' : '';
+      if (v !== null) {
+        td.textContent = v;
+        cls += v === 0 ? ' zero' : ' filled';
+      } else if (my && rollCount > 0 && !rolling) {
+        td.textContent = Core.scoreCategory(cat, dice);   // 가능한 점수 미리보기(회색)
+        cls += ' preview' + (pl.type === 'human' ? ' clickable' : '');
+      } else {
+        td.textContent = '';
+      }
+      td.className = cls.trim();
+    }
+    const us = Core.upperSum(pl.sheet);
+    const bon = Core.upperBonus(pl.sheet);
+    document.getElementById('sub-' + p).textContent = bon ? `${us} +35` : `${us}/63`;
+    document.getElementById('tot-' + p).textContent = Core.totalScore(pl.sheet);
+  });
+}
+
+document.getElementById('sheetTbl').addEventListener('click', e => {
+  const td = e.target.closest('td.clickable');
+  if (!td) return;
+  markCategory(parseInt(td.dataset.cat, 10));
+});
+
+function markCategory(cat) {
+  if (gameOver || rolling || rollCount === 0) return;
+  const pl = players[cur];
+  if (pl.type !== 'human' || pl.sheet[cat] !== null) return;
+  const s = Core.scoreCategory(cat, dice);
+  pl.sheet[cat] = s;
+  lastFill = `${pl.short} ${CAT_INFO[cat][0]} ${s}점${s === 0 ? ' (0점 마킹)' : ''}`;
+  endTurn();
+}
+
+// ---- 턴 진행 ----
+function startTurn() {
+  rollCount = 0;
+  held = [false, false, false, false, false];
+  renderDice();
+  renderSheet();
+  updateUI();
+  const pl = players[cur];
+  const instr = pl.type === 'human' ? `${pl.name} — 주사위를 굴리세요.` : '';
+  setNotice((lastFill ? lastFill + (instr ? ' · ' : '') : '') + instr);
+  if (pl.type === 'ai') aiTurn();
+}
+
+function endTurn() {
+  cur++;
+  if (cur >= players.length) { cur = 0; round++; }
+  if (round > 12) { endGame(); return; }
+  startTurn();
+}
+
+// ---- AI 턴 (코어의 aiChooseHold / aiChooseCategory 사용, 지연 연출) ----
+function aiTurn() {
+  const g = gen;
+  const pl = players[cur];
+  const step = (fn, ms) => setTimeout(() => { if (g === gen && !gameOver) fn(); }, ms);
+  function afterRoll() {
+    if (g !== gen) return;
+    if (rollCount < 3) {
+      const mask = Core.aiChooseHold(dice.slice(), pl.sheet.slice(), 3 - rollCount);
+      if (mask.every(x => x)) { step(mark, 550); return; }   // 전부 고정 = 지금 기입이 최선
+      step(() => {
+        held = mask.slice();
+        renderDice();
+        step(() => doRoll(afterRoll), 520);
+      }, 430);
+    } else {
+      step(mark, 550);
+    }
+  }
+  function mark() {
+    const cat = Core.aiChooseCategory(dice.slice(), pl.sheet.slice());
+    const s = Core.scoreCategory(cat, dice);
+    pl.sheet[cat] = s;
+    lastFill = `🤖 ${pl.short} ${CAT_INFO[cat][0]} ${s}점${s === 0 ? ' (0점 마킹)' : ''}`;
+    endTurn();
+  }
+  step(() => doRoll(afterRoll), 450);
+}
+
+// ---- 종료 / 순위 ----
+function loadBest() {
+  try {
+    const v = localStorage.getItem(BEST_KEY);
+    return v === null ? null : parseInt(v, 10);
+  } catch (e) { return null; }
+}
+function saveBest(v) {
+  try { localStorage.setItem(BEST_KEY, String(v)); } catch (e) {}
+}
+
+function endGame() {
+  gameOver = true;
+  lastFill = '';
+  renderDice();
+  renderSheet();
+  updateUI();
+  setNotice('');
+  const rank = players
+    .map(pl => ({ pl, total: Core.totalScore(pl.sheet) }))
+    .sort((a, b) => b.total - a.total);
+  const btns = [['🔁 새 게임', newGame], ['📋 점수표 보기', hideOverlay]];
+  if (players.length === 1) {
+    const t = rank[0].total;
+    const lines = [`최종 점수 — ${t}점`];
+    let title = '🏁 솔로 게임 종료';
+    if (players[0].type === 'human') {
+      const prev = loadBest();
+      if (prev === null) { saveBest(t); lines.push(`첫 기록 등록! 최고 기록 ${t}점`); }
+      else if (t > prev) { saveBest(t); title = '🎉 신기록!'; lines.push(`이전 최고 ${prev}점 → 새 최고 ${t}점`); }
+      else lines.push(`최고 기록 ${prev}점 (이번 판 ${t}점)`);
+    }
+    showOverlay(title, lines.join('\n'), btns);
+  } else {
+    const lines = [];
+    let prevTotal = null, r = 0;
+    rank.forEach((e, idx) => {
+      if (e.total !== prevTotal) { r = idx + 1; prevTotal = e.total; }
+      lines.push(`${r}위 — ${e.pl.name}${e.pl.type === 'ai' ? ' (AI)' : ''} · ${e.total}점`);
+    });
+    const winners = rank.filter(e => e.total === rank[0].total);
+    const title = winners.length > 1
+      ? '🤝 공동 우승!'
+      : `🏆 ${winners[0].pl.name}${winners[0].pl.type === 'ai' ? ' (AI)' : ''} 우승!`;
+    showOverlay(title, lines.join('\n'), btns);
+  }
+}
+
+// ---- 오버레이 (omok 패턴) ----
+function showOverlay(title, desc, buttons) {
+  document.getElementById('overlayTitle').textContent = title;
+  document.getElementById('overlayDesc').textContent = desc;
+  const wrap = document.getElementById('overlayBtns');
+  wrap.innerHTML = '';
+  buttons.forEach(([label, cb], i) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    if (i === 0) b.className = 'primary';
+    b.addEventListener('click', cb);
+    wrap.appendChild(b);
+  });
+  document.getElementById('overlay').classList.add('show');
+}
+function hideOverlay() { document.getElementById('overlay').classList.remove('show'); }
+
+function setNotice(msg) { document.getElementById('notice').textContent = msg || ''; }
+
+// ---- 상태 표시 ----
+function updateUI() {
+  const st = document.getElementById('status');
+  if (gameOver) {
+    st.innerHTML = '🏁 게임 종료 — 점수표를 확인하세요';
+  } else {
+    const pl = players[cur];
+    st.innerHTML = `라운드 <b>${round}</b>/12 — ${pl.type === 'ai' ? '🤖' : '🎲'} ${pl.name} 차례 · 굴림 ${rollCount}/3`;
+  }
+  const rb = document.getElementById('rollBtn');
+  rb.disabled = gameOver || rolling || rollCount >= 3 || players[cur].type !== 'human';
+  rb.textContent = rolling ? '🎲 굴리는 중…' : `🎲 굴리기 (${3 - rollCount}회 남음)`;
+  let info = `<span>라운드 <b>${Math.min(round, 12)}/12</b></span>` +
+    players.map((pl, p) =>
+      `<span>${p === cur && !gameOver ? '▶ ' : ''}${pl.short}${pl.type === 'ai' ? '🤖' : ''} <b>${Core.totalScore(pl.sheet)}</b></span>`
+    ).join('');
+  if (players.length === 1) {
+    const b = loadBest();
+    info += `<span>🏆 최고 기록 <b>${b === null ? '—' : b}</b></span>`;
+  }
+  document.getElementById('infoBar').innerHTML = info;
+}
+
+// ---- 새 게임 / 설정 ----
+function newGame() {
+  gen++;                                   // 진행 중이던 타이머/AI 체인 무효화
+  if (scrambleTimer) { clearInterval(scrambleTimer); scrambleTimer = null; }
+  rolling = false;
+  const cnt = parseInt(document.getElementById('pcountSel').value, 10);
+  players = [];
+  for (let i = 0; i < cnt; i++) {
+    players.push({
+      name: `플레이어 ${i + 1}`,
+      short: `P${i + 1}`,
+      type: document.getElementById('ptypeSel' + i).value,
+      sheet: Array(12).fill(null),
+    });
+  }
+  cur = 0;
+  round = 1;
+  rollCount = 0;
+  held = [false, false, false, false, false];
+  dice = [1, 2, 3, 4, 5];
+  gameOver = false;
+  lastFill = '';
+  hideOverlay();
+  buildSheet();
+  startTurn();
+}
+
+function gameInProgress() {
+  return !gameOver && (rollCount > 0 || players.some(pl => pl.sheet.some(v => v !== null)));
+}
+function syncTypeSels() {
+  const cnt = parseInt(document.getElementById('pcountSel').value, 10);
+  for (let i = 0; i < 4; i++)
+    document.getElementById('ptypeSel' + i).style.display = i < cnt ? '' : 'none';
+}
+function onSettingChange() {
+  syncTypeSels();
+  if (gameInProgress()) setNotice('변경한 설정은 다음 "새 게임"부터 적용됩니다.');
+  else newGame();
+}
+
+document.getElementById('rollBtn').addEventListener('click', () => doRoll());
+document.getElementById('newBtn').addEventListener('click', newGame);
+document.getElementById('pcountSel').addEventListener('change', onSettingChange);
+for (let i = 0; i < 4; i++)
+  document.getElementById('ptypeSel' + i).addEventListener('change', onSettingChange);
+
+syncTypeSels();
+newGame();
+</script>
+</body>
+</html>

@@ -1,0 +1,1897 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>장기 — 한국 장기</title>
+<style>
+  :root {
+    --bg: #1a1d24;
+    --panel: #242832;
+    --text: #e8e6e0;
+    --muted: #9a9788;
+    --accent: #d4a24e;
+    --cho: #4caf50;
+    --han: #e05a4e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Apple SD Gothic Neo", "Pretendard", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px 16px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  #status {
+    margin: 14px 0 4px;
+    font-size: 16px;
+    font-weight: 600;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+  }
+  #notice {
+    min-height: 20px;
+    font-size: 13px;
+    color: var(--accent);
+    margin-bottom: 8px;
+    text-align: center;
+    max-width: 560px;
+  }
+  .turn-dot {
+    width: 16px; height: 16px; border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 1px 3px rgba(0,0,0,.5);
+    flex-shrink: 0;
+  }
+  .turn-dot.cho { background: radial-gradient(circle at 35% 35%, #82c77a, #1b5e20); }
+  .turn-dot.han { background: radial-gradient(circle at 35% 35%, #ef9a8a, #8e2418); }
+  #boardWrap { position: relative; }
+  canvas {
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.45);
+    cursor: pointer;
+    touch-action: manipulation;
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+  .bar {
+    display: flex;
+    gap: 20px;
+    margin-top: 14px;
+    background: var(--panel);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .bar b { color: var(--accent); }
+  .bar .cap { font-family: serif; letter-spacing: 2px; }
+  .controls { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; justify-content: center; align-items: center; }
+  button {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background .15s;
+  }
+  button:hover { background: #2f3442; }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent); color: #1a1d24; border-color: var(--accent); font-weight: 700; }
+  button.primary:hover:not(:disabled) { background: #e0b160; }
+  button.on { border-color: var(--accent); color: var(--accent); }
+  select {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .clocks { display: none; gap: 12px; margin: 4px 0 10px; justify-content: center; }
+  .clock {
+    background: var(--panel);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    min-width: 150px;
+    text-align: center;
+  }
+  .clock.active { color: var(--accent); border-color: var(--accent); }
+  .clock.danger { color: #e05555; border-color: #e05555; }
+  #result {
+    margin-top: 14px;
+    font-size: 15px;
+    line-height: 1.7;
+    background: var(--panel);
+    border-radius: 8px;
+    padding: 12px 20px;
+    display: none;
+    text-align: center;
+  }
+  #result.show { display: block; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 10px; max-width: 560px; text-align: center; line-height: 1.6; }
+  a.home { color: var(--muted); font-size: 12px; margin-top: 16px; text-decoration: none; }
+  a.home:hover { color: var(--accent); }
+  #onlineOverlay {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(10, 12, 16, .82);
+    display: none; align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  #onlineOverlay.show { display: flex; }
+  .ovBox {
+    background: var(--panel);
+    border: 1px solid #3a3f4d;
+    border-radius: 12px;
+    padding: 24px 28px;
+    max-width: 380px; width: 100%;
+    text-align: center;
+    box-shadow: 0 12px 40px rgba(0,0,0,.5);
+  }
+  .ovBox h2 { font-size: 19px; margin-bottom: 10px; }
+  .ovBox p { color: var(--muted); font-size: 14px; line-height: 1.7; white-space: pre-line; }
+  #ovCode {
+    font-size: 32px; font-weight: 800; letter-spacing: 8px;
+    color: var(--accent); margin: 12px 0 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  #ovInput {
+    background: var(--bg); color: var(--text);
+    border: 1px solid #3a3f4d; border-radius: 8px;
+    padding: 10px 12px; font-size: 20px; font-family: inherit;
+    width: 100%; text-align: center; letter-spacing: 6px;
+    text-transform: uppercase; margin-top: 12px;
+  }
+  #ovBtns { display: flex; gap: 8px; margin-top: 18px; justify-content: center; flex-wrap: wrap; }
+  @media (max-width: 600px) {
+    body { padding: 12px 8px; }
+    h1 { font-size: 18px; }
+    .sub { font-size: 12px; }
+    #status { font-size: 14px; }
+    #notice { font-size: 12px; }
+    .bar { gap: 10px; padding: 8px 12px; font-size: 12px; }
+    .controls { gap: 6px; }
+    button, select { padding: 8px 12px; font-size: 13px; }
+    .clocks { gap: 8px; width: 100%; }
+    .clock { min-width: 0; flex: 1; font-size: 13px; padding: 5px 8px; }
+    .hint { font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+  <h1>장기 <span>Janggi</span></h1>
+  <div class="sub">초·한 전통 장기 — 궁성 대각선 · 포 넘기 규칙 · 빅장 알림 · 마상 차림 선택</div>
+
+  <div id="status"></div>
+  <div id="notice"></div>
+  <div class="clocks" id="clockBar"><span class="clock" id="clkC"></span><span class="clock" id="clkH"></span></div>
+  <div id="boardWrap"><canvas id="board"></canvas></div>
+
+  <div class="bar" id="infoBar"></div>
+
+  <div class="controls">
+    <button id="passBtn">한 수 쉬기</button>
+    <button id="undoBtn">무르기</button>
+    <button id="resignBtn">🏳️ 기권</button>
+    <button id="drawBtn">🤝 무승부 제안</button>
+    <select id="choSetupSel" title="초 진영 마상 차림 — 새 대국부터 적용">
+      <option value="상마상마">초 차림: 상마상마</option>
+      <option value="마상상마" selected>초 차림: 마상상마</option>
+      <option value="마상마상">초 차림: 마상마상</option>
+      <option value="상마마상">초 차림: 상마마상</option>
+    </select>
+    <select id="hanSetupSel" title="한 진영 마상 차림 — 새 대국부터 적용">
+      <option value="상마상마">한 차림: 상마상마</option>
+      <option value="마상상마" selected>한 차림: 마상상마</option>
+      <option value="마상마상">한 차림: 마상마상</option>
+      <option value="상마마상">한 차림: 상마마상</option>
+    </select>
+    <button id="newBtn" class="primary">새 대국</button>
+    <button id="rematchBtn" class="primary" style="display:none">🔁 한판 더</button>
+  </div>
+
+  <div class="controls">
+    <select id="oppSel" title="상대 — 새 대국부터 적용">
+      <option value="human">상대: 사람</option>
+      <option value="easy">AI 쉬움</option>
+      <option value="normal">AI 보통</option>
+      <option value="hard">AI 어려움</option>
+    </select>
+    <select id="mySideSel" title="내 진영 — 새 대국부터 적용" style="display:none">
+      <option value="c">내 진영: 🟢 초</option>
+      <option value="h">내 진영: 🔴 한</option>
+    </select>
+    <select id="timeSel" title="제한시간 — 새 대국부터 적용">
+      <option value="0">시간제한 없음</option>
+      <option value="180">3분</option>
+      <option value="300">5분</option>
+      <option value="600">10분</option>
+      <option value="1200">20분</option>
+    </select>
+    <select id="byoSel" title="초읽기 — 새 대국부터 적용">
+      <option value="0">초읽기 없음</option>
+      <option value="10">10초×3</option>
+      <option value="30">30초×3</option>
+      <option value="60">60초×3</option>
+    </select>
+    <button id="voiceBtn" title="음성 초읽기 켜기/끄기">🔊</button>
+    <button id="rotateBtn" title="보드 180° 회전 — 한(漢) 시점 (대면 대국용)">🔄 보드 회전</button>
+    <button id="onlineBtn" title="온라인 2인 대전 — 방 코드로 친구와 대국">🌐 온라인</button>
+  </div>
+
+  <div id="result"></div>
+  <div class="hint">기물을 클릭하면 이동 가능한 지점이 표시됩니다. 점수는 잡은 기물 합산(차13 · 포7 · 마5 · 상3 · 사3 · 졸병2, 한은 덤 1.5점 포함)으로 참고용입니다. 장군 상태에서는 한 수 쉬기가 불가하며, 빅장(궁 대면) 시 알림이 표시되고 🤝 무승부 제안으로 합의 무승부 처리할 수 있습니다. 🌐 온라인 버튼으로 방을 만들거나 코드로 입장해 친구와 원격 대전할 수 있습니다 — 온라인 대국은 시간제한 없이 진행되며 무르기가 없습니다.</div>
+
+  <div id="onlineOverlay">
+    <div class="ovBox">
+      <h2 id="ovTitle">🌐 온라인 대전</h2>
+      <p id="ovDesc"></p>
+      <div id="ovCode" style="display:none"></div>
+      <input id="ovInput" maxlength="4" placeholder="방 코드" autocomplete="off" style="display:none">
+      <div id="ovBtns"></div>
+    </div>
+  </div>
+
+  <a class="home" href="../index.html">← 게임 선택으로</a>
+
+<script id="mainScript">
+// ===== JANGGI CORE START =====
+const ROWS = 10, COLS = 9;
+const CHO = 'c', HAN = 'h';
+const ORTH = [[1,0],[-1,0],[0,1],[0,-1]];
+const VALUES = { R: 13, C: 7, H: 5, E: 3, A: 3, P: 2 };
+const HAN_DUM = 1.5;
+// 마상 차림: 슬롯 [열1, 열2, 열6, 열7]
+const SETUPS = {
+  '상마상마': ['E','H','E','H'],
+  '마상상마': ['H','E','E','H'],
+  '마상마상': ['H','E','H','E'],
+  '상마마상': ['E','H','H','E'],
+};
+
+function idxOf(r, c) { return r * COLS + c; }
+function inBoard(r, c) { return r >= 0 && r < ROWS && c >= 0 && c < COLS; }
+function opp(s) { return s === CHO ? HAN : CHO; }
+
+// 궁성 대각선: 중앙 (1,4)/(8,4) ↔ 네 귀 연결
+const DIAG_NB = new Map();   // idx -> [[r,c], ...]
+const DIAG_EDGES = new Set();
+(function buildDiag() {
+  for (const [cr, cc] of [[1,4],[8,4]]) {
+    for (const dr of [-1,1]) for (const dc of [-1,1]) {
+      const r2 = cr + dr, c2 = cc + dc;
+      const a = idxOf(cr, cc), b = idxOf(r2, c2);
+      DIAG_EDGES.add(a + '_' + b);
+      DIAG_EDGES.add(b + '_' + a);
+      if (!DIAG_NB.has(a)) DIAG_NB.set(a, []);
+      if (!DIAG_NB.has(b)) DIAG_NB.set(b, []);
+      DIAG_NB.get(a).push([r2, c2]);
+      DIAG_NB.get(b).push([cr, cc]);
+    }
+  }
+})();
+function diagNb(r, c) { return DIAG_NB.get(idxOf(r, c)) || []; }
+function isDiagAdj(r1, c1, r2, c2) {
+  if (!inBoard(r1, c1) || !inBoard(r2, c2)) return false;
+  return DIAG_EDGES.has(idxOf(r1, c1) + '_' + idxOf(r2, c2));
+}
+
+function initialBoard(choSetup, hanSetup) {
+  const b = new Array(ROWS * COLS).fill(null);
+  const hs = SETUPS[hanSetup] || SETUPS['마상상마'];
+  const cs = SETUPS[choSetup] || SETUPS['마상상마'];
+  // 한 (위쪽) — 차림 이름은 대국자가 자기 자리에서 왼쪽부터 읽는 순서.
+  // 한은 초와 마주 보므로 보드 좌표 기준 좌우 반전 배치.
+  b[idxOf(0,0)] = { s: HAN, t: 'R' };  b[idxOf(0,8)] = { s: HAN, t: 'R' };
+  b[idxOf(0,3)] = { s: HAN, t: 'A' };  b[idxOf(0,5)] = { s: HAN, t: 'A' };
+  b[idxOf(0,1)] = { s: HAN, t: hs[3] }; b[idxOf(0,2)] = { s: HAN, t: hs[2] };
+  b[idxOf(0,6)] = { s: HAN, t: hs[1] }; b[idxOf(0,7)] = { s: HAN, t: hs[0] };
+  b[idxOf(1,4)] = { s: HAN, t: 'K' };
+  b[idxOf(2,1)] = { s: HAN, t: 'C' };  b[idxOf(2,7)] = { s: HAN, t: 'C' };
+  for (const c of [0,2,4,6,8]) b[idxOf(3,c)] = { s: HAN, t: 'P' };
+  // 초 (아래쪽)
+  b[idxOf(9,0)] = { s: CHO, t: 'R' };  b[idxOf(9,8)] = { s: CHO, t: 'R' };
+  b[idxOf(9,3)] = { s: CHO, t: 'A' };  b[idxOf(9,5)] = { s: CHO, t: 'A' };
+  b[idxOf(9,1)] = { s: CHO, t: cs[0] }; b[idxOf(9,2)] = { s: CHO, t: cs[1] };
+  b[idxOf(9,6)] = { s: CHO, t: cs[2] }; b[idxOf(9,7)] = { s: CHO, t: cs[3] };
+  b[idxOf(8,4)] = { s: CHO, t: 'K' };
+  b[idxOf(7,1)] = { s: CHO, t: 'C' };  b[idxOf(7,7)] = { s: CHO, t: 'C' };
+  for (const c of [0,2,4,6,8]) b[idxOf(6,c)] = { s: CHO, t: 'P' };
+  return b;
+}
+
+// 유사 합법수 (자기 궁 방어는 legalMovesFrom에서 필터)
+function pseudoMoves(board, r, c) {
+  const p = board[idxOf(r, c)];
+  if (!p) return [];
+  const side = p.s;
+  const res = [];
+  // 빈 곳/적 기물이면 추가, 빈 곳이었으면 true (슬라이딩 계속)
+  const push = (rr, cc) => {
+    if (!inBoard(rr, cc)) return false;
+    const q = board[idxOf(rr, cc)];
+    if (q && q.s === side) return false;
+    res.push([rr, cc]);
+    return !q;
+  };
+
+  if (p.t === 'K' || p.t === 'A') {
+    // 궁·사: 자기 궁성 내 1칸, 대각선은 그려진 선 위에서만
+    const rmin = side === HAN ? 0 : 7, rmax = side === HAN ? 2 : 9;
+    for (const [dr, dc] of ORTH) {
+      const rr = r + dr, cc = c + dc;
+      if (rr >= rmin && rr <= rmax && cc >= 3 && cc <= 5) push(rr, cc);
+    }
+    for (const [rr, cc] of diagNb(r, c)) {
+      if (rr >= rmin && rr <= rmax) push(rr, cc);
+    }
+  } else if (p.t === 'R') {
+    // 차: 직선 임의 거리 + 궁성 대각선 슬라이딩
+    for (const [dr, dc] of ORTH) {
+      let rr = r + dr, cc = c + dc;
+      while (inBoard(rr, cc) && push(rr, cc)) { rr += dr; cc += dc; }
+    }
+    for (const [rr, cc] of diagNb(r, c)) {
+      if (push(rr, cc)) {
+        const r2 = rr + (rr - r), c2 = cc + (cc - c);
+        if (isDiagAdj(rr, cc, r2, c2)) push(r2, c2);
+      }
+    }
+  } else if (p.t === 'C') {
+    // 포: 기물 1개(포 제외)를 넘어 이동/캡처, 포는 잡을 수 없음
+    for (const [dr, dc] of ORTH) {
+      let rr = r + dr, cc = c + dc;
+      while (inBoard(rr, cc) && !board[idxOf(rr, cc)]) { rr += dr; cc += dc; }
+      if (!inBoard(rr, cc)) continue;
+      if (board[idxOf(rr, cc)].t === 'C') continue;   // 포는 넘을 수 없음
+      rr += dr; cc += dc;
+      while (inBoard(rr, cc)) {
+        const q = board[idxOf(rr, cc)];
+        if (!q) { res.push([rr, cc]); }
+        else {
+          if (q.s !== side && q.t !== 'C') res.push([rr, cc]);
+          break;
+        }
+        rr += dr; cc += dc;
+      }
+    }
+    // 궁성 대각선: 귀 → 중앙(스크린) → 반대 귀
+    for (const [rm, cm] of diagNb(r, c)) {
+      const r2 = rm + (rm - r), c2 = cm + (cm - c);
+      if (!isDiagAdj(rm, cm, r2, c2)) continue;
+      const screen = board[idxOf(rm, cm)];
+      if (!screen || screen.t === 'C') continue;
+      const q = board[idxOf(r2, c2)];
+      if (!q || (q.s !== side && q.t !== 'C')) res.push([r2, c2]);
+    }
+  } else if (p.t === 'H') {
+    // 마: 직선 1칸(차단 체크) + 대각 1칸
+    for (const [dr, dc] of ORTH) {
+      const mr = r + dr, mc = c + dc;
+      if (!inBoard(mr, mc) || board[idxOf(mr, mc)]) continue;
+      const diags = dr === 0 ? [[1, dc], [-1, dc]] : [[dr, 1], [dr, -1]];
+      for (const [er, ec] of diags) push(mr + er, mc + ec);
+    }
+  } else if (p.t === 'E') {
+    // 상: 직선 1칸 + 대각 2칸 (경유점 2곳 모두 차단 체크)
+    for (const [dr, dc] of ORTH) {
+      const m1r = r + dr, m1c = c + dc;
+      if (!inBoard(m1r, m1c) || board[idxOf(m1r, m1c)]) continue;
+      const diags = dr === 0 ? [[1, dc], [-1, dc]] : [[dr, 1], [dr, -1]];
+      for (const [er, ec] of diags) {
+        const m2r = m1r + er, m2c = m1c + ec;
+        if (!inBoard(m2r, m2c) || board[idxOf(m2r, m2c)]) continue;
+        push(m2r + er, m2c + ec);
+      }
+    }
+  } else if (p.t === 'P') {
+    // 졸/병: 앞·옆 1칸, 후퇴 불가. 상대 궁성 대각선 위에서는 전진 대각 가능
+    const f = side === CHO ? -1 : 1;
+    for (const [dr, dc] of [[f, 0], [0, -1], [0, 1]]) push(r + dr, c + dc);
+    for (const dc of [-1, 1]) {
+      if (isDiagAdj(r, c, r + f, c + dc)) push(r + f, c + dc);
+    }
+  }
+  return res;
+}
+
+function applyMove(board, from, to) {
+  const b = board.slice();
+  b[to] = b[from];
+  b[from] = null;
+  return b;
+}
+
+function findKing(board, side) {
+  for (let i = 0; i < board.length; i++) {
+    if (board[i] && board[i].s === side && board[i].t === 'K') return i;
+  }
+  return -1;
+}
+
+function isInCheck(board, side) {
+  const k = findKing(board, side);
+  if (k < 0) return false;
+  const enemy = opp(side);
+  for (let i = 0; i < board.length; i++) {
+    const p = board[i];
+    if (!p || p.s !== enemy) continue;
+    const ms = pseudoMoves(board, (i / COLS) | 0, i % COLS);
+    for (const [rr, cc] of ms) if (idxOf(rr, cc) === k) return true;
+  }
+  return false;
+}
+
+function legalMovesFrom(board, r, c) {
+  const p = board[idxOf(r, c)];
+  if (!p) return [];
+  return pseudoMoves(board, r, c).filter(([rr, cc]) => {
+    const b2 = applyMove(board, idxOf(r, c), idxOf(rr, cc));
+    return !isInCheck(b2, p.s);
+  });
+}
+
+function hasAnyLegal(board, side) {
+  for (let i = 0; i < board.length; i++) {
+    const p = board[i];
+    if (!p || p.s !== side) continue;
+    if (legalMovesFrom(board, (i / COLS) | 0, i % COLS).length > 0) return true;
+  }
+  return false;
+}
+
+// 빅장: 두 궁이 같은 열에서 기물 없이 마주봄
+function isBikjang(board) {
+  const kc = findKing(board, CHO), kh = findKing(board, HAN);
+  if (kc < 0 || kh < 0) return false;
+  if (kc % COLS !== kh % COLS) return false;
+  const col = kc % COLS;
+  const r1 = Math.min((kc / COLS) | 0, (kh / COLS) | 0);
+  const r2 = Math.max((kc / COLS) | 0, (kh / COLS) | 0);
+  for (let r = r1 + 1; r < r2; r++) if (board[idxOf(r, col)]) return false;
+  return true;
+}
+
+function capScore(list) { return list.reduce((a, t) => a + (VALUES[t] || 0), 0); }
+
+// 원격(온라인) 수신 수 검증 — 현재 국면에서 from→to가 해당 차례의 합법수인지 (순수 함수)
+function isLegalMoveIdx(board, turn, from, to) {
+  if (!Number.isInteger(from) || !Number.isInteger(to)) return false;
+  if (from < 0 || from >= ROWS * COLS || to < 0 || to >= ROWS * COLS) return false;
+  const p = board[from];
+  if (!p || p.s !== turn) return false;
+  return legalMovesFrom(board, (from / COLS) | 0, from % COLS)
+    .some(([rr, cc]) => idxOf(rr, cc) === to);
+}
+// ===== JANGGI CORE END =====
+
+// ===== JANGGI AI START =====
+// 순수 엔진 — DOM 미사용 (Web Worker/테스트 환경에 그대로 포함됨)
+const AI_NOW = (typeof performance !== 'undefined' && performance.now)
+  ? () => performance.now() : () => Date.now();
+const AI_MATE = 1000000;
+const AI_INF = AI_MATE * 2;
+const AI_TIME = { normal: 700, hard: 2000 };   // 반복 심화 시간 예산(ms)
+const AI_QMAX = 8;                              // 퀴선스 최대 깊이
+const AI_EASY_NOISE = 90;                       // 쉬움 난이도 평가 노이즈(±)
+let aiDeadlineTs = 0, aiSearchAborted = false;
+
+function allPseudoMoves(board, side) {
+  const res = [];
+  for (let i = 0; i < board.length; i++) {
+    const p = board[i];
+    if (!p || p.s !== side) continue;
+    for (const [rr, cc] of pseudoMoves(board, (i / COLS) | 0, i % COLS)) {
+      res.push([i, idxOf(rr, cc)]);
+    }
+  }
+  return res;
+}
+
+function allLegalMoves(board, side) {
+  const res = [];
+  for (let i = 0; i < board.length; i++) {
+    const p = board[i];
+    if (!p || p.s !== side) continue;
+    for (const [rr, cc] of legalMovesFrom(board, (i / COLS) | 0, i % COLS)) {
+      res.push([i, idxOf(rr, cc)]);
+    }
+  }
+  return res;
+}
+
+function capVal(board, m) {
+  const q = board[m[1]];
+  return q ? (q.t === 'K' ? 99999 : (VALUES[q.t] || 0) * 100) : 0;
+}
+function orderByCapture(board, moves) {
+  return moves.slice().sort((a, b) => capVal(board, b) - capVal(board, a));
+}
+
+// 평가: 기물가치×100 + 졸/병 전진 + 사 생존(궁성 수비) + 이동성 + 포 스크린 + 한 덤(+150)
+function evalBoard(board, sideToMove) {
+  let sc = -150;                                  // 한 덤 1.5점 (초 관점 -150)
+  for (let i = 0; i < board.length; i++) {
+    const p = board[i];
+    if (!p) continue;
+    const r = (i / COLS) | 0, c = i % COLS;
+    let v = (VALUES[p.t] || 0) * 100;             // 궁(K)은 가치 표 밖 — 포획 시 AI_MATE 처리
+    if (p.t === 'P') v += (p.s === CHO ? 6 - r : r - 3) * 6;   // 전진 보너스
+    if (p.t === 'A') v += 15;                                   // 사 생존 보너스
+    const mob = pseudoMoves(board, r, c).length;
+    v += mob * 2;                                               // 이동성
+    if (p.t === 'C' && mob > 0) v += 10;                        // 포 스크린 확보
+    sc += p.s === CHO ? v : -v;
+  }
+  return sideToMove === CHO ? sc : -sc;
+}
+
+// 퀴선스: 캡처만 탐색
+function quiesce(board, side, alpha, beta, qd) {
+  const stand = evalBoard(board, side);
+  if (qd <= 0 || stand >= beta) return stand;
+  if (stand > alpha) alpha = stand;
+  const caps = [];
+  for (const m of allPseudoMoves(board, side)) if (board[m[1]]) caps.push(m);
+  caps.sort((a, b) => capVal(board, b) - capVal(board, a));
+  for (const [f, t] of caps) {
+    if (board[t].t === 'K') return AI_MATE - 100;   // 궁 포획 = 승리
+    const sc = -quiesce(applyMove(board, f, t), opp(side), -beta, -alpha, qd - 1);
+    if (sc >= beta) return sc;
+    if (sc > alpha) alpha = sc;
+  }
+  return alpha;
+}
+
+// 네가맥스 + 알파베타 (유사수 + 궁 포획 감지 — 자살수는 다음 수에서 궁이 잡혀 걸러짐)
+function negamax(board, side, depth, alpha, beta, ply) {
+  if (aiSearchAborted) return alpha;
+  if (aiDeadlineTs && AI_NOW() > aiDeadlineTs) { aiSearchAborted = true; return alpha; }
+  if (depth <= 0) return quiesce(board, side, alpha, beta, AI_QMAX);
+  const moves = orderByCapture(board, allPseudoMoves(board, side));
+  if (moves.length === 0) return quiesce(board, side, alpha, beta, AI_QMAX);
+  let best = -AI_INF;
+  for (const [f, t] of moves) {
+    const q = board[t];
+    if (q && q.t === 'K') return AI_MATE - ply;     // 상대 궁 포획
+    const sc = -negamax(applyMove(board, f, t), opp(side), depth - 1, -beta, -alpha, ply + 1);
+    if (aiSearchAborted) return alpha;
+    if (sc > best) best = sc;
+    if (sc > alpha) alpha = sc;
+    if (alpha >= beta) break;
+  }
+  return best;
+}
+
+// 수 선택: 루트는 항상 완전 합법수만 사용 → 반환 수는 반드시 합법 (장군이면 응수 보장)
+function aiChooseMove(board, turn, level) {
+  const legal = allLegalMoves(board, turn);
+  if (legal.length === 0) return null;              // 둘 수 없음 — 메인 로직에 위임
+  aiSearchAborted = false;
+  if (level === 'easy') {
+    // depth 1 + 퀴선스(공짜 기물은 잡음) + 노이즈
+    aiDeadlineTs = 0;
+    let best = legal[0], bestSc = -Infinity;
+    for (const [f, t] of legal) {
+      const sc = -quiesce(applyMove(board, f, t), opp(turn), -AI_INF, AI_INF, AI_QMAX)
+               + (Math.random() * 2 - 1) * AI_EASY_NOISE;
+      if (sc > bestSc) { bestSc = sc; best = [f, t]; }
+    }
+    return { from: best[0], to: best[1] };
+  }
+  // 보통/어려움: 반복 심화
+  aiDeadlineTs = AI_NOW() + (AI_TIME[level] || AI_TIME.normal);
+  let ordered = orderByCapture(board, legal);
+  let best = ordered[0];
+  for (let depth = 2; depth <= 24; depth++) {
+    let curBest = null, curSc = -Infinity, alpha = -AI_INF;
+    for (const [f, t] of ordered) {
+      const sc = -negamax(applyMove(board, f, t), opp(turn), depth - 1, -AI_INF, -alpha, 1);
+      if (aiSearchAborted) break;
+      if (sc > curSc) { curSc = sc; curBest = [f, t]; }
+      if (sc > alpha) alpha = sc;
+    }
+    if (aiSearchAborted) { break; }
+    if (curBest) {
+      best = curBest;
+      ordered = [curBest, ...ordered.filter(m => m !== curBest)];  // 최선수 우선 재정렬
+      if (curSc >= AI_MATE - 100) break;            // 외통 발견 — 조기 종료
+    }
+  }
+  return { from: best[0], to: best[1] };
+}
+// ===== JANGGI AI END =====
+
+// ---- 전역 상태 ----
+const GLYPH = {
+  c: { K: '楚', A: '士', R: '車', C: '包', H: '馬', E: '象', P: '卒' },
+  h: { K: '漢', A: '士', R: '車', C: '包', H: '馬', E: '象', P: '兵' },
+};
+const SIDE_NAME = { c: '초(楚)', h: '한(漢)' };
+
+let history = [];
+let selected = -1;         // 선택된 기물 idx
+let moveTargets = [];      // 이동 가능 idx 목록
+let hoverIdx = -1;
+let gameOver = false;
+let timedOutGame = false;  // 시간패로 종국 — 무르기 불가
+
+function cur() { return history[history.length - 1]; }
+function setNotice(msg) { document.getElementById('notice').textContent = msg || ''; }
+function gameInProgress() { return history.length > 1 && !gameOver; }
+
+function newGame() {
+  if (online.active) return;             // 온라인 중에는 로컬 새 대국 금지 (한판 더 = rematch)
+  const cs = document.getElementById('choSetupSel').value;
+  const hs = document.getElementById('hanSetupSel').value;
+  const oppMode = document.getElementById('oppSel').value;
+  aiLevel = oppMode === 'human' ? null : oppMode;
+  aiSide = aiLevel ? opp(document.getElementById('mySideSel').value) : null;
+  aiThinking = false;
+  aiReqId++;                 // 이전 대국의 AI 응답 무효화
+  history = [{
+    board: initialBoard(cs, hs),
+    turn: CHO,
+    captured: { c: [], h: [] },
+    lastMove: null,
+  }];
+  selected = -1;
+  moveTargets = [];
+  gameOver = false;
+  resignedGame = false;
+  resignedSide = null;
+  drawnGame = false;
+  timedOutGame = false;
+  // AI 모드: 무승부 제안 숨김, 내 진영이 한이면 한 시점으로 자동 회전
+  document.getElementById('drawBtn').style.display = aiLevel ? 'none' : '';
+  if (aiLevel) rotated = document.getElementById('mySideSel').value === HAN;
+  document.getElementById('rotateBtn').classList.toggle('on', rotated);
+  setNotice('');
+  document.getElementById('result').classList.remove('show');
+  resetClock();
+  updateUI();
+  draw();
+  maybeAIMove();             // 사람이 한이면 AI(초)가 먼저 둠
+}
+
+// 착수 직전 착수자 시계 스냅샷 (undo 시 복원용 — 초읽기 리필 악용 차단)
+function clockSnapshot(side) {
+  if (!clockEnabled || !clock) return null;
+  return { side, ck: { ...clock[side] } };
+}
+
+function doMove(from, to) {
+  const s = cur();
+  const preN = history.length - 1;      // 온라인 전송용 — 이 수를 두기 직전까지의 수 번호
+  const victim = s.board[to];
+  const captured = { c: [...s.captured.c], h: [...s.captured.h] };
+  if (victim) captured[s.turn].push(victim.t);
+  history.push({
+    board: applyMove(s.board, from, to),
+    turn: opp(s.turn),
+    captured,
+    lastMove: [from, to],
+    clockSnap: clockSnapshot(s.turn),
+  });
+  selected = -1;
+  moveTargets = [];
+  clockOnMove(s.turn);
+  if (online.active && !onlineApplyingRemote) {
+    sendMoveToServer({ kind: 'move', from, to }, preN);
+  }
+  postMoveEval();
+}
+
+function postMoveEval() {
+  const s = cur();
+  const msgs = [];
+  const check = isInCheck(s.board, s.turn);
+  if (check) {
+    if (!hasAnyLegal(s.board, s.turn)) {
+      gameOver = true;
+      const winner = opp(s.turn);
+      const el = document.getElementById('result');
+      el.innerHTML = `<b style="color:var(--accent)">외통! ${SIDE_NAME[winner]} 승리</b><br>` +
+        `${SIDE_NAME[CHO]} 잡은 점수 ${capScore(s.captured.c).toFixed(1)} · ` +
+        `${SIDE_NAME[HAN]} 잡은 점수 ${(capScore(s.captured.h) + HAN_DUM).toFixed(1)} (덤 포함)`;
+      el.classList.add('show');
+      msgs.push(`외통! ${SIDE_NAME[winner]}의 승리입니다.`);
+      if (online.active) sendResultToServer(winner, '외통');   // 내 클라 판정 종국 보고
+    } else {
+      msgs.push('장군!');
+    }
+  }
+  if (!gameOver && isBikjang(s.board)) {
+    msgs.push('빅장(궁 대면) — 관례상 무승부를 제안할 수 있는 상태입니다.');
+  }
+  setNotice(msgs.join(' '));
+  updateUI();
+  draw();
+  maybeAIMove();             // 사람 착수 후 AI 차례면 자동 착수
+}
+
+function pass() {
+  if (gameOver) return;
+  const s = cur();
+  if (online.active && !onlineApplyingRemote &&
+      (!online.joined || s.turn !== online.mySide)) return;   // 온라인: 내 차례에만
+  if (isInCheck(s.board, s.turn)) {
+    setNotice('장군 상태에서는 한 수 쉴 수 없습니다!');
+    return;
+  }
+  const preN = history.length - 1;      // 온라인 전송용 수 번호
+  history.push({
+    board: s.board.slice(),
+    turn: opp(s.turn),
+    captured: { c: [...s.captured.c], h: [...s.captured.h] },
+    lastMove: null,
+    clockSnap: clockSnapshot(s.turn),
+  });
+  selected = -1;
+  moveTargets = [];
+  clockOnMove(s.turn);
+  if (online.active && !onlineApplyingRemote) {
+    sendMoveToServer({ kind: 'pass' }, preN);
+  }
+  // 빅장 상태면 알림을 덮어쓰지 않고 병기
+  const passMsg = `${SIDE_NAME[opp(cur().turn)]}이(가) 한 수 쉬었습니다.`;
+  setNotice(isBikjang(cur().board)
+    ? passMsg + ' 빅장(궁 대면) — 관례상 무승부를 제안할 수 있는 상태입니다.'
+    : passMsg);
+  updateUI();
+  draw();
+  maybeAIMove();
+}
+
+let resignedGame = false;
+let drawnGame = false;     // 합의 무승부 종국 — 무르기 불가
+let resignedAt = 0;        // 기권 시각 — 취소 시 경과 시간 청구
+let resignedSide = null;   // 기권한 진영
+
+function resign() {
+  if (gameOver) return;
+  if (online.active) { onlineResign(); return; }   // 온라인: 서버 경유
+  const s = cur();
+  const loser = aiLevel ? opp(aiSide) : s.turn;   // AI 모드에서는 항상 사람이 기권
+  const winner = opp(loser);
+  if (aiThinking) { aiReqId++; aiThinking = false; }   // 진행 중 AI 탐색 응답 무효화
+  gameOver = true;
+  resignedGame = true;
+  resignedAt = performance.now();
+  resignedSide = loser;
+  selected = -1;
+  moveTargets = [];
+  const el = document.getElementById('result');
+  el.innerHTML = `<b style="color:var(--accent)">${SIDE_NAME[winner]} 승리!</b> (${SIDE_NAME[loser]} 기권)<br>` +
+    `${SIDE_NAME[CHO]} 잡은 점수 ${capScore(s.captured.c).toFixed(1)} · ` +
+    `${SIDE_NAME[HAN]} 잡은 점수 ${(capScore(s.captured.h) + HAN_DUM).toFixed(1)} (덤 포함)`;
+  el.classList.add('show');
+  setNotice('');
+  updateUI();
+  draw();
+}
+
+// 합의 무승부 제안 (사람 대 사람 전용 — AI 모드에서는 버튼 숨김)
+function offerDraw() {
+  if (gameOver || aiLevel || aiThinking) return;
+  if (online.active) { onlineOfferDraw(); return; }   // 온라인: confirm 금지 — 서버 경유 + 버튼 응답
+  const s = cur();
+  const bik = isBikjang(s.board);
+  const pre = bik ? '빅장(궁 대면) — 관례상 무승부.\n' : '';
+  const accepted = confirm(pre + `${SIDE_NAME[s.turn]}이(가) 무승부를 제안합니다.\n상대가 수락합니까?`);
+  lastTickAt = performance.now();        // 대화 상자로 멈춘 시간은 시계에서 차감하지 않음
+  if (!accepted) {
+    setNotice('무승부 제안이 거절되었습니다. 대국을 계속합니다.'
+      + (bik ? ' (빅장 — 관례상 무승부 상태)' : ''));
+    return;
+  }
+  gameOver = true;
+  drawnGame = true;
+  selected = -1;
+  moveTargets = [];
+  const el = document.getElementById('result');
+  el.innerHTML = `<b style="color:var(--accent)">🤝 합의 무승부</b>${bik ? ' — 빅장(궁 대면), 관례상 무승부' : ''}<br>` +
+    `${SIDE_NAME[CHO]} 잡은 점수 ${capScore(s.captured.c).toFixed(1)} · ` +
+    `${SIDE_NAME[HAN]} 잡은 점수 ${(capScore(s.captured.h) + HAN_DUM).toFixed(1)} (덤 포함)`;
+  el.classList.add('show');
+  setNotice('');
+  updateUI();
+  draw();
+}
+
+function undo() {
+  if (online.active) {                   // 온라인 대국은 무르기 없음
+    setNotice('온라인 대국에서는 무르기가 없습니다.');
+    return;
+  }
+  if (timedOutGame) {                    // 시간패는 무를 수 없음
+    setNotice('시간패는 무를 수 없습니다.');
+    return;
+  }
+  if (drawnGame) {                       // 합의 무승부는 무를 수 없음
+    setNotice('합의 무승부는 무를 수 없습니다.');
+    return;
+  }
+  if (aiThinking) {                      // AI 생각 중 무르기 불가
+    setNotice('AI가 생각하는 동안에는 무를 수 없습니다.');
+    return;
+  }
+  if (resignedGame) {                    // 기권 취소 (수는 그대로)
+    // 기권~취소 사이 경과 시간을 기권 측 시계에서 차감 (기권 반복으로 시계 멈춤 악용 차단)
+    if (clockEnabled && clock && resignedSide && clock[resignedSide]) {
+      const elapsed = performance.now() - resignedAt;
+      const ck = clock[resignedSide];
+      if (ck.inByo) ck.byoMs = Math.max(1000, ck.byoMs - elapsed);   // 시간패 직전 1초로 클램프
+      else ck.main = Math.max(1000, ck.main - elapsed);
+    }
+    resignedGame = false;
+    resignedSide = null;
+    gameOver = false;
+    document.getElementById('result').classList.remove('show');
+    setNotice('');
+    updateUI();
+    draw();
+    maybeAIMove();
+    return;
+  }
+  // AI 모드: 사람 차례로 돌아가도록 2수 되돌림 (시계 스냅샷 2회 복원)
+  const steps = aiLevel ? 2 : 1;
+  if (history.length <= steps) return;
+  for (let k = 0; k < steps; k++) {
+    const popped = history.pop();
+    // 착수자 시계를 착수 직전 상태로 복원 (초읽기 리필 악용 차단)
+    if (popped.clockSnap && clock && clock[popped.clockSnap.side]) {
+      clock[popped.clockSnap.side] = { ...popped.clockSnap.ck };
+    }
+  }
+  lastSpoken = '';
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  gameOver = false;
+  selected = -1;
+  moveTargets = [];
+  document.getElementById('result').classList.remove('show');
+  setNotice('');
+  updateUI();
+  draw();
+  maybeAIMove();                         // 되돌린 위치가 AI 차례면 다시 착수
+}
+
+// ---- 렌더링 ----
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+const CELL = 54, MARGIN = 38;
+const W = MARGIN * 2 + CELL * (COLS - 1);
+const H = MARGIN * 2 + CELL * (ROWS - 1);
+const dpr = window.devicePixelRatio || 1;
+canvas.width = W * dpr;
+canvas.height = H * dpr;
+canvas.style.width = W + 'px';   // 높이는 CSS height:auto — 모바일 축소 시 비율 유지
+ctx.scale(dpr, dpr);
+
+function px(c) { return MARGIN + c * CELL; }
+function py(r) { return MARGIN + r * CELL; }
+
+// 보드 회전 (핫시트 대면용): 켜면 한(漢) 시점 — 보드 인덱스 ↔ 화면 인덱스 180° 대응
+let rotated = false;
+function vIdx(i) { return rotated ? ROWS * COLS - 1 - i : i; }
+function vx(i) { const j = vIdx(i); return px(j % COLS); }
+function vy(i) { const j = vIdx(i); return py((j / COLS) | 0); }
+
+const RADII = { K: 0.50, R: 0.41, C: 0.41, H: 0.41, E: 0.41, A: 0.35, P: 0.35 };
+
+function octPath(cx, cy, R) {
+  ctx.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const a = Math.PI / 8 + i * Math.PI / 4;
+    const x = cx + R * Math.cos(a), y = cy + R * Math.sin(a);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
+function drawPiece(cx, cy, p) {
+  const R = CELL * RADII[p.t];
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,.4)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 2;
+  const g = ctx.createRadialGradient(cx - R * 0.3, cy - R * 0.3, R * 0.15, cx, cy, R * 1.1);
+  if (p.s === CHO) { g.addColorStop(0, '#eef5dd'); g.addColorStop(1, '#b3cb8d'); }
+  else { g.addColorStop(0, '#fae6da'); g.addColorStop(1, '#e2ae93'); }
+  ctx.fillStyle = g;
+  octPath(cx, cy, R);
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = p.s === CHO ? '#3e6b2f' : '#93392a';
+  ctx.lineWidth = 2;
+  octPath(cx, cy, R);
+  ctx.stroke();
+  ctx.fillStyle = p.s === CHO ? '#175c22' : '#b01e12';
+  ctx.font = `bold ${Math.round(R * 1.12)}px "Noto Serif KR", "AppleMyungjo", serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(GLYPH[p.s][p.t], cx, cy + R * 0.06);
+}
+
+function draw() {
+  const s = cur();
+  const board = s.board;
+
+  // 나무판 그라디언트
+  const grad = ctx.createLinearGradient(0, 0, W, H);
+  grad.addColorStop(0, '#dcb35c');
+  grad.addColorStop(1, '#c99b45');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // 격자 (9로 × 10로)
+  ctx.strokeStyle = 'rgba(40,25,5,.75)';
+  ctx.lineWidth = 1;
+  for (let r = 0; r < ROWS; r++) {
+    ctx.beginPath();
+    ctx.moveTo(px(0), py(r)); ctx.lineTo(px(COLS - 1), py(r));
+    ctx.stroke();
+  }
+  for (let c = 0; c < COLS; c++) {
+    ctx.beginPath();
+    ctx.moveTo(px(c), py(0)); ctx.lineTo(px(c), py(ROWS - 1));
+    ctx.stroke();
+  }
+  // 외곽 테두리
+  ctx.lineWidth = 2;
+  ctx.strokeRect(px(0), py(0), CELL * (COLS - 1), CELL * (ROWS - 1));
+
+  // 궁성 대각선
+  ctx.lineWidth = 1;
+  for (const [r0, r2] of [[0, 2], [7, 9]]) {
+    ctx.beginPath();
+    ctx.moveTo(px(3), py(r0)); ctx.lineTo(px(5), py(r2));
+    ctx.moveTo(px(5), py(r0)); ctx.lineTo(px(3), py(r2));
+    ctx.stroke();
+  }
+
+  // 마지막 수 하이라이트
+  if (s.lastMove) {
+    for (const i of s.lastMove) {
+      const cx = vx(i), cy = vy(i);
+      ctx.fillStyle = 'rgba(255,232,140,.45)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, CELL * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // 장군 강조 (현재 차례 궁 빨간 표시)
+  if (!gameOver && isInCheck(board, s.turn)) {
+    const k = findKing(board, s.turn);
+    if (k >= 0) {
+      const cx = vx(k), cy = vy(k);
+      ctx.fillStyle = 'rgba(224,64,48,.4)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, CELL * 0.58, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // 기물
+  for (let i = 0; i < board.length; i++) {
+    if (board[i]) drawPiece(vx(i), vy(i), board[i]);
+  }
+
+  // 선택 표시
+  if (selected >= 0) {
+    const cx = vx(selected), cy = vy(selected);
+    ctx.strokeStyle = '#d4a24e';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, CELL * RADII[board[selected].t] + 4, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // 이동 가능 지점 표시
+  for (const t of moveTargets) {
+    const cx = vx(t), cy = vy(t);
+    if (board[t]) {
+      // 잡을 수 있는 기물: 굵은 빨간 이중 링
+      ctx.strokeStyle = '#c62828';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(cx, cy, CELL * RADII[board[t].t] + 5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.85)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy, CELL * RADII[board[t].t] + 8, 0, Math.PI * 2);
+      ctx.stroke();
+    } else {
+      // 빈 지점: 진한 점 + 흰 테두리
+      ctx.fillStyle = '#1e4e8c';
+      ctx.strokeStyle = 'rgba(255,255,255,.9)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+
+  // 호버 표시
+  if (!gameOver && !humanInputBlocked() && hoverIdx >= 0 && board[hoverIdx] && board[hoverIdx].s === s.turn && hoverIdx !== selected) {
+    const cx = vx(hoverIdx), cy = vy(hoverIdx);
+    ctx.strokeStyle = 'rgba(212,162,78,.55)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, CELL * RADII[board[hoverIdx].t] + 4, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function eventToIdx(e) {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (W / rect.width);
+  const y = (e.clientY - rect.top) * (H / rect.height);
+  const c = Math.round((x - MARGIN) / CELL);
+  const r = Math.round((y - MARGIN) / CELL);
+  if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return -1;
+  if (Math.abs(x - px(c)) > CELL * 0.48 || Math.abs(y - py(r)) > CELL * 0.48) return -1;
+  return vIdx(idxOf(r, c));   // 회전 시 화면 좌표 → 보드 인덱스 역변환
+}
+
+canvas.addEventListener('click', e => {
+  const idx = eventToIdx(e);
+  if (idx < 0 || gameOver || humanInputBlocked()) return;   // AI 차례에는 입력 무시
+  const s = cur();
+  if (selected >= 0 && moveTargets.includes(idx)) {
+    doMove(selected, idx);
+    return;
+  }
+  const p = s.board[idx];
+  if (p && p.s === s.turn) {
+    selected = idx;
+    moveTargets = legalMovesFrom(s.board, (idx / COLS) | 0, idx % COLS).map(([r, c]) => idxOf(r, c));
+    if (moveTargets.length === 0) setNotice('이 기물은 지금 움직일 수 없습니다.');
+  } else {
+    selected = -1;
+    moveTargets = [];
+  }
+  draw();
+});
+canvas.addEventListener('mousemove', e => {
+  const idx = eventToIdx(e);
+  if (idx !== hoverIdx) { hoverIdx = idx; draw(); }
+});
+canvas.addEventListener('mouseleave', () => { hoverIdx = -1; draw(); });
+
+document.getElementById('passBtn').addEventListener('click', pass);
+document.getElementById('undoBtn').addEventListener('click', undo);
+document.getElementById('resignBtn').addEventListener('click', resign);
+document.getElementById('drawBtn').addEventListener('click', offerDraw);
+document.getElementById('rotateBtn').addEventListener('click', () => {
+  rotated = !rotated;
+  document.getElementById('rotateBtn').classList.toggle('on', rotated);
+  draw();
+});
+document.getElementById('newBtn').addEventListener('click', newGame);
+// 설정 select: 진행 중 대국은 건드리지 않고 다음 "새 대국"부터 적용
+function onSettingChange() {
+  if (gameInProgress()) {
+    setNotice('변경한 설정은 다음 "새 대국"부터 적용됩니다.');
+  } else {
+    newGame();
+  }
+}
+document.getElementById('choSetupSel').addEventListener('change', onSettingChange);
+document.getElementById('hanSetupSel').addEventListener('change', onSettingChange);
+
+// ---- AI 상대 (인라인 Web Worker) ----
+let aiLevel = null;        // 진행 중 대국에 적용된 난이도 (null = 사람 대 사람)
+let aiSide = null;         // AI가 두는 진영
+let aiThinking = false;
+let aiReqId = 0;           // 응답 유효성 토큰 (새 대국/기권 시 증가)
+let aiWorker = null;
+
+function humanInputBlocked() {
+  if (online.active) {                   // 온라인: 상대 입장 전·상대 차례에는 입력 금지
+    return !online.joined || (!gameOver && cur().turn !== online.mySide);
+  }
+  return aiThinking || (aiLevel && !gameOver && cur().turn === aiSide);
+}
+
+// 스크립트 텍스트에서 마커 구간(규칙 로직 + 엔진)을 추출해 Worker 생성 — 단일 파일 유지
+function getWorker() {
+  if (aiWorker) return aiWorker;
+  const src = document.getElementById('mainScript').textContent;
+  const M = name => '// ===== JANGGI ' + name + ' =====';
+  const cut = (a, b) => src.slice(src.indexOf(M(a)), src.indexOf(M(b)));
+  const code = cut('CORE START', 'CORE END') + '\n' + cut('AI START', 'AI END') + '\n' +
+    'self.onmessage = function(e) {\n' +
+    '  const d = e.data;\n' +
+    '  const mv = aiChooseMove(d.board, d.turn, d.level);\n' +
+    '  self.postMessage({ reqId: d.reqId, move: mv });\n' +
+    '};\n';
+  aiWorker = new Worker(URL.createObjectURL(new Blob([code], { type: 'application/javascript' })));
+  aiWorker.onmessage = onAIMessage;
+  aiWorker.onerror = () => {
+    aiThinking = false;
+    setNotice('AI 오류가 발생했습니다. 새 대국으로 다시 시작해 주세요.');
+    updateUI();
+  };
+  return aiWorker;
+}
+
+function maybeAIMove() {
+  if (!aiLevel || gameOver || aiThinking) return;
+  if (cur().turn !== aiSide) return;
+  aiThinking = true;
+  aiReqId++;
+  updateUI();
+  const s = cur();
+  getWorker().postMessage({ board: s.board, turn: s.turn, level: aiLevel, reqId: aiReqId });
+}
+
+function onAIMessage(e) {
+  const { reqId, move } = e.data;
+  if (reqId !== aiReqId) return;         // 무효화된 요청 (새 대국·기권 등)
+  aiThinking = false;
+  if (gameOver || !aiLevel || cur().turn !== aiSide) { updateUI(); return; }
+  if (!move) {                           // 합법수 없음 — 외통은 이미 종료 처리됐으므로 한 수 쉬기
+    pass();
+    return;
+  }
+  // 방어적 검증: 반드시 합법수만 착수
+  const fr = (move.from / COLS) | 0, fc = move.from % COLS;
+  const ok = legalMovesFrom(cur().board, fr, fc).some(([rr, cc]) => idxOf(rr, cc) === move.to);
+  if (!ok) { setNotice('AI 착수 오류가 발생했습니다.'); updateUI(); return; }
+  doMove(move.from, move.to);
+}
+
+document.getElementById('oppSel').addEventListener('change', () => {
+  document.getElementById('mySideSel').style.display =
+    document.getElementById('oppSel').value === 'human' ? 'none' : '';
+  onSettingChange();
+});
+document.getElementById('mySideSel').addEventListener('change', onSettingChange);
+
+// ---- UI 갱신 ----
+function updateUI() {
+  const s = cur();
+  const status = document.getElementById('status');
+  if (online.active && !online.joined && !gameOver) {
+    status.innerHTML = `⏳ 상대 입장 대기 중 — 방 코드 <b style="color:var(--accent)">${online.room}</b>`;
+  } else if (gameOver) {
+    status.innerHTML = '대국 종료';
+  } else if (aiLevel && s.turn === aiSide) {
+    const cls = s.turn === CHO ? 'cho' : 'han';
+    status.innerHTML = `<span class="turn-dot ${cls}"></span> 🤖 AI 생각 중…`;
+  } else {
+    const cls = s.turn === CHO ? 'cho' : 'han';
+    const check = isInCheck(s.board, s.turn) ? ' <b style="color:#e05a4e">— 장군!</b>' : '';
+    const who = online.active
+      ? ` <span style="color:var(--muted);font-size:12px">(${s.turn === online.mySide ? '내' : '상대'} 차례)</span>` : '';
+    status.innerHTML = `<span class="turn-dot ${cls}"></span> ${SIDE_NAME[s.turn]} 차례${check}${who}`;
+  }
+  const capC = s.captured.c.map(t => GLYPH.h[t]).join('') || '—';
+  const capH = s.captured.h.map(t => GLYPH.c[t]).join('') || '—';
+  const scC = capScore(s.captured.c).toFixed(1);
+  const scH = (capScore(s.captured.h) + HAN_DUM).toFixed(1);
+  document.getElementById('infoBar').innerHTML =
+    `<span>🟢 초(楚) · 잡은 기물 <span class="cap">${capC}</span> · 점수 <b>${scC}</b></span>` +
+    `<span>🔴 한(漢) · 잡은 기물 <span class="cap">${capH}</span> · 점수 <b>${scH}</b> <span style="color:var(--muted);font-size:12px">(덤 ${HAN_DUM} 포함)</span></span>` +
+    (online.active
+      ? `<span>🌐 방 <b>${online.room}</b> · 나 = ${online.mySide === CHO ? '🟢 초' : '🔴 한'}</span>` : '');
+  document.getElementById('passBtn').disabled = gameOver || humanInputBlocked();
+  document.getElementById('resignBtn').disabled = gameOver || (online.active && !online.joined);
+  document.getElementById('drawBtn').disabled = gameOver || aiThinking ||
+    (online.active && (!online.joined || online.drawPending));
+  document.getElementById('undoBtn').disabled = online.active || timedOutGame || drawnGame ||
+    (aiLevel
+      ? (aiThinking || (!resignedGame && history.length <= 2))
+      : (history.length <= 1 && !resignedGame));
+  const rb = document.getElementById('rematchBtn');
+  rb.style.display = online.active && gameOver ? '' : 'none';
+  rb.disabled = online.myRematch;
+  rb.textContent = online.myRematch ? '⏳ 상대 수락 대기' : '🔁 한판 더';
+  renderClock();
+}
+
+// ---- 대국 시계 & 음성 초읽기 ----
+const KO_NUM = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구', '십'];
+const BYO_WORD = { 10: '십', 30: '삼십', 60: '육십' };
+let clock = null;              // { c: {main,periods,byoMs,inByo}, h: {...} } (ms 단위)
+let clockEnabled = false;      // 시간제한 없음이면 false (틱·표시 없음)
+let byoSec = 0, byoPeriods = 0;
+let voiceOn = true;
+let lastSpoken = '';           // 초 카운트다운 중복 발화 방지 키
+let lastTickAt = performance.now();
+let announceUntil = 0;         // 안내 발화 보호 구간 — 이 시각까지 숫자 카운트다운 발화 생략
+
+function announce(text) {      // 안내성 발화 (숫자 카운트다운에 잘리지 않음)
+  announceUntil = performance.now() + 1800;
+  speak(text);
+}
+
+function speak(text) {
+  if (!voiceOn || !window.speechSynthesis) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ko-KR';
+    u.rate = 1.1;
+    speechSynthesis.speak(u);
+  } catch (e) { /* 음성 미지원 환경 무시 */ }
+}
+function speakOnce(key, text) {
+  if (lastSpoken === key) return;
+  lastSpoken = key;
+  speak(text);
+}
+
+function resetClock() {
+  const mainSec = parseInt(document.getElementById('timeSel').value, 10) || 0;
+  byoSec = parseInt(document.getElementById('byoSel').value, 10) || 0;
+  byoPeriods = byoSec > 0 ? 3 : 0;
+  clockEnabled = mainSec > 0 || byoSec > 0;
+  const startInByo = mainSec === 0 && byoSec > 0;   // 초읽기 단독 모드
+  clock = {
+    [CHO]: { main: mainSec * 1000, periods: byoPeriods, byoMs: byoSec * 1000, inByo: startInByo },
+    [HAN]: { main: mainSec * 1000, periods: byoPeriods, byoMs: byoSec * 1000, inByo: startInByo },
+  };
+  lastSpoken = '';
+  announceUntil = 0;
+  lastTickAt = performance.now();
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  document.getElementById('clockBar').style.display = clockEnabled ? 'flex' : 'none';
+  renderClock();
+}
+
+// 수를 두면(한 수 쉬기 포함): 초읽기 중이었으면 주기 전체로 리셋
+function clockOnMove(mover) {
+  if (!clockEnabled || !clock) return;
+  const ck = clock[mover];
+  if (ck.inByo) ck.byoMs = byoSec * 1000;
+  lastSpoken = '';
+  if (window.speechSynthesis) speechSynthesis.cancel();
+}
+
+function timeLose(loser) {
+  gameOver = true;
+  timedOutGame = true;
+  selected = -1;
+  moveTargets = [];
+  const winner = opp(loser);
+  const s = cur();
+  const el = document.getElementById('result');
+  el.innerHTML = `<b style="color:var(--accent)">⏰ ${SIDE_NAME[winner]} 시간승!</b> (${SIDE_NAME[loser]} 시간 초과)<br>` +
+    `${SIDE_NAME[CHO]} 잡은 점수 ${capScore(s.captured.c).toFixed(1)} · ` +
+    `${SIDE_NAME[HAN]} 잡은 점수 ${(capScore(s.captured.h) + HAN_DUM).toFixed(1)} (덤 포함)`;
+  el.classList.add('show');
+  speak('시간 초과');
+  setNotice('');
+  updateUI();
+  draw();
+}
+
+function fmtMain(ms) {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}
+
+function renderClock() {
+  if (!clockEnabled || !clock) return;
+  const turn = cur().turn;
+  for (const side of [CHO, HAN]) {
+    const el = document.getElementById(side === CHO ? 'clkC' : 'clkH');
+    const ck = clock[side];
+    const secLeft = Math.max(0, Math.ceil((ck.inByo ? ck.byoMs : ck.main) / 1000));
+    const txt = ck.inByo ? `초읽기 ${secLeft}″ ×${ck.periods}` : fmtMain(ck.main);
+    el.textContent = `${side === CHO ? '🟢 초(楚)' : '🔴 한(漢)'} ${txt}`;
+    el.classList.toggle('active', !gameOver && side === turn);
+    el.classList.toggle('danger', !gameOver && side === turn && secLeft <= 10);
+  }
+}
+
+function clockTick() {
+  const now = performance.now();
+  const dt = now - lastTickAt;
+  lastTickAt = now;
+  if (!clockEnabled || !clock || gameOver) return;
+  const side = cur().turn;
+  const ck = clock[side];
+  if (!ck.inByo) {
+    ck.main -= dt;
+    if (ck.main <= 0) {
+      const over = -ck.main;                     // 백그라운드 탭 등 큰 틱의 초과분 이월
+      ck.main = 0;
+      if (byoSec > 0 && ck.periods > 0) {
+        ck.inByo = true;
+        ck.byoMs = byoSec * 1000 - over;
+        while (ck.byoMs <= 0) {                  // 초과분이 주기 여러 개를 소모할 수 있음
+          ck.periods -= 1;
+          if (ck.periods <= 0) { timeLose(side); return; }
+          ck.byoMs += byoSec * 1000;
+        }
+        announce(ck.periods === 1 ? '마지막 초읽기' : `초읽기 ${BYO_WORD[byoSec]} 초`);
+      } else {
+        timeLose(side);
+        return;
+      }
+    } else if (byoSec === 0) {
+      // 초읽기가 없으면 메인 마지막 10초 읽기
+      const sec = Math.ceil(ck.main / 1000);
+      if (sec >= 1 && sec <= 10) speakOnce(`${side}-m-${sec}`, KO_NUM[sec]);
+    }
+  } else {
+    ck.byoMs -= dt;
+    if (ck.byoMs <= 0) {
+      while (ck.byoMs <= 0) {                    // 이월: 한 틱에 여러 주기 소모 가능
+        ck.periods -= 1;
+        if (ck.periods <= 0) { timeLose(side); return; }
+        ck.byoMs += byoSec * 1000;
+      }
+      lastSpoken = '';
+      announce(ck.periods === 1 ? '마지막 초읽기' : `초읽기 ${BYO_WORD[byoSec]} 초`);
+    } else if (now >= announceUntil) {
+      // 초읽기 남은 초 10~1 매 초 읽기 — 주기 리셋 후 첫 초(예: 10초 설정의 '십')도 발화.
+      // 진입/소모 안내 발화 보호 구간(announceUntil)과 겹칠 때만 생략.
+      const sec = Math.ceil(ck.byoMs / 1000);
+      if (sec >= 1 && sec <= 10 && sec <= byoSec) speakOnce(`${side}-b-${ck.periods}-${sec}`, KO_NUM[sec]);
+    }
+  }
+  renderClock();
+}
+setInterval(clockTick, 200);
+
+document.getElementById('timeSel').addEventListener('change', onSettingChange);
+document.getElementById('byoSel').addEventListener('change', onSettingChange);
+document.getElementById('voiceBtn').addEventListener('click', () => {
+  voiceOn = !voiceOn;
+  document.getElementById('voiceBtn').textContent = voiceOn ? '🔊' : '🔇';
+  if (!voiceOn && window.speechSynthesis) speechSynthesis.cancel();
+});
+
+// ===== JANGGI ONLINE START =====
+// 온라인 2인 대전 — games_server.py (방 코드 매칭 + 수 중계, 규칙 검증은 양쪽 클라이언트 엔진)
+const API = location.port === '8891' ? '' : 'http://localhost:8891';
+
+function onlineInitState() {
+  return {
+    active: false, room: null, token: null, player: 0, seq: 0,
+    joined: false, first: 1, mySide: null, settings: null, gameNo: 0,
+    drawPending: false, myRematch: false, oppRematch: false,
+  };
+}
+let online = onlineInitState();
+let onlineApplyingRemote = false;   // 원격 수 적용 중 — doMove/pass의 서버 재전송 차단
+let pollTimer = null;
+let pollBusy = false;
+let pollFails = 0;
+
+function sideOfPlayer(p) { return p === online.first ? CHO : HAN; }
+function playerOfSide(side) { return side === CHO ? online.first : 3 - online.first; }
+function mySideTag() { return online.mySide === CHO ? '🟢 초' : '🔴 한'; }
+
+async function apiPost(path, body) {
+  const r = await fetch(API + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  let data = {};
+  try { data = await r.json(); } catch (e) { /* 본문 없는 응답 */ }
+  return { ok: r.ok, status: r.status, data };
+}
+function apiAction(action) {
+  return apiPost('/api/action', { room: online.room, token: online.token, action });
+}
+
+// ---- 오버레이 ----
+function ovShow(title, desc, opts = {}) {
+  document.getElementById('ovTitle').textContent = title;
+  document.getElementById('ovDesc').textContent = desc || '';
+  const codeEl = document.getElementById('ovCode');
+  codeEl.style.display = opts.code ? '' : 'none';
+  codeEl.textContent = opts.code || '';
+  const inp = document.getElementById('ovInput');
+  inp.style.display = opts.input ? '' : 'none';
+  if (opts.input) inp.value = '';
+  const btns = document.getElementById('ovBtns');
+  btns.innerHTML = '';
+  for (const b of opts.buttons || []) {
+    const el = document.createElement('button');
+    el.textContent = b.label;
+    if (b.primary) el.className = 'primary';
+    el.addEventListener('click', b.fn);
+    btns.appendChild(el);
+  }
+  document.getElementById('onlineOverlay').classList.add('show');
+  if (opts.input) inp.focus();
+}
+function ovHide() { document.getElementById('onlineOverlay').classList.remove('show'); }
+function ovDesc(msg) { document.getElementById('ovDesc').textContent = msg; }
+
+function ovMenu() {
+  if (online.active) {
+    ovShow('🌐 온라인 대전 중',
+      `방 코드 ${online.room} · 나 = ${mySideTag()}` +
+      (online.joined ? '' : '\n상대 입장을 기다리는 중입니다.'), {
+      code: online.joined ? null : online.room,
+      buttons: [
+        { label: '🚪 방 나가기', fn: () => { ovHide(); leaveOnline('방을 나갔습니다 — 로컬 대국으로 돌아갑니다.'); } },
+        { label: '닫기', fn: ovHide },
+      ],
+    });
+    return;
+  }
+  ovShow('🌐 온라인 대전',
+    '방을 만들어 코드를 친구에게 알려주거나,\n받은 코드로 입장하세요.\n' +
+    '마상 차림은 방장 설정을 따르며, 첫 판은 방장이 🟢 초(선공)입니다.', {
+    buttons: [
+      { label: '방 만들기', primary: true, fn: createRoom },
+      { label: '코드로 입장', fn: ovJoinForm },
+      { label: '닫기', fn: ovHide },
+    ],
+  });
+}
+function ovJoinForm() {
+  ovShow('🌐 방 입장', '전달받은 4자리 방 코드를 입력하세요.', {
+    input: true,
+    buttons: [
+      { label: '입장', primary: true, fn: joinRoom },
+      { label: '뒤로', fn: ovMenu },
+    ],
+  });
+}
+
+// ---- 방 생성/입장/나가기 ----
+async function createRoom() {
+  if (online.active) return;
+  const settings = {
+    choSetup: document.getElementById('choSetupSel').value,
+    hanSetup: document.getElementById('hanSetupSel').value,
+  };
+  ovShow('🌐 방 만드는 중…', '서버에 연결하고 있습니다.');
+  let r;
+  try {
+    r = await apiPost('/api/create', { game: 'janggi', settings });
+  } catch (e) {
+    ovShow('🌐 연결 실패', '서버에 연결할 수 없습니다.\n(games_server.py 실행 여부를 확인하세요)', {
+      buttons: [
+        { label: '다시 시도', primary: true, fn: createRoom },
+        { label: '닫기', fn: ovHide },
+      ],
+    });
+    return;
+  }
+  if (!r.ok) {
+    ovShow('🌐 방 생성 실패', r.data.error || `서버 오류 (${r.status})`, {
+      buttons: [{ label: '닫기', fn: ovHide }],
+    });
+    return;
+  }
+  online = onlineInitState();
+  online.active = true;
+  online.room = r.data.room;
+  online.token = r.data.token;
+  online.player = 1;
+  online.seq = r.data.seq || 0;
+  online.first = 1;
+  online.mySide = CHO;             // 첫 판 선공(초) = 방장
+  online.settings = settings;
+  enterOnlineMode();
+  onlineStartGame();
+  ovShow('🌐 방 생성 완료', '아래 코드를 친구에게 알려주세요.\n상대가 입장하면 자동으로 시작됩니다. (나 = 🟢 초)', {
+    code: online.room,
+    buttons: [
+      { label: '🚪 방 나가기', fn: () => { ovHide(); leaveOnline('방을 나갔습니다 — 로컬 대국으로 돌아갑니다.'); } },
+      { label: '닫기', fn: ovHide },
+    ],
+  });
+  startPolling();
+}
+
+async function joinRoom() {
+  if (online.active) return;
+  const code = (document.getElementById('ovInput').value || '').trim().toUpperCase();
+  if (code.length !== 4) { ovDesc('4자리 방 코드를 입력하세요.'); return; }
+  let r;
+  try {
+    r = await apiPost('/api/join', { room: code, game: 'janggi' });
+  } catch (e) {
+    ovDesc('서버에 연결할 수 없습니다 — 다시 시도하세요.\n(games_server.py 실행 여부를 확인하세요)');
+    return;
+  }
+  if (!r.ok) { ovDesc(r.data.error || `입장할 수 없습니다 (${r.status})`); return; }
+  online = onlineInitState();
+  online.active = true;
+  online.room = r.data.room;
+  online.token = r.data.token;
+  online.player = 2;
+  online.seq = r.data.seq || 0;
+  online.joined = true;
+  online.first = 1;
+  online.mySide = HAN;             // 첫 판 참가자 = 한 (후공)
+  online.settings = r.data.settings || {};
+  enterOnlineMode();
+  onlineStartGame();
+  ovHide();
+  setNotice(`입장 완료 — 대국 시작! (나 = ${mySideTag()}) 온라인 대국은 시간제한·무르기가 없습니다.`);
+  startPolling();
+}
+
+const ONLINE_LOCKED_IDS = ['choSetupSel', 'hanSetupSel', 'oppSel', 'mySideSel', 'timeSel', 'byoSel'];
+function enterOnlineMode() {
+  for (const id of ONLINE_LOCKED_IDS) document.getElementById(id).disabled = true;
+  document.getElementById('newBtn').disabled = true;
+  document.getElementById('onlineBtn').classList.add('on');
+  // 방장 차림 설정을 셀렉트 표시에도 반영 (양쪽 동일 차림 확인용)
+  const st = online.settings || {};
+  if (SETUPS[st.choSetup]) document.getElementById('choSetupSel').value = st.choSetup;
+  if (SETUPS[st.hanSetup]) document.getElementById('hanSetupSel').value = st.hanSetup;
+}
+
+function leaveOnline(msg) {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  online = onlineInitState();
+  onlineApplyingRemote = false;
+  pollBusy = false;
+  pollFails = 0;
+  for (const id of ONLINE_LOCKED_IDS) document.getElementById(id).disabled = false;
+  document.getElementById('newBtn').disabled = false;
+  document.getElementById('onlineBtn').classList.remove('on');
+  document.getElementById('rematchBtn').style.display = 'none';
+  rotated = false;
+  document.getElementById('rotateBtn').classList.remove('on');
+  newGame();                       // 로컬 대국으로 복원 (기존 셀렉트 설정 그대로)
+  if (msg) setNotice(msg);
+}
+
+// ---- 온라인 판 시작 (첫 판 + 리매치 공용) ----
+function onlineStartGame() {
+  const st = online.settings || {};
+  aiLevel = null; aiSide = null; aiThinking = false; aiReqId++;
+  history = [{
+    board: initialBoard(st.choSetup || '마상상마', st.hanSetup || '마상상마'),
+    turn: CHO,
+    captured: { c: [], h: [] },
+    lastMove: null,
+  }];
+  selected = -1;
+  moveTargets = [];
+  gameOver = false;
+  resignedGame = false;
+  resignedSide = null;
+  drawnGame = false;
+  timedOutGame = false;
+  online.drawPending = false;
+  online.myRematch = false;
+  online.oppRematch = false;
+  clockEnabled = false;            // 온라인: 시간 무제한 (시계 비활성 — 힌트 문구 참고)
+  clock = null;
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  document.getElementById('clockBar').style.display = 'none';
+  document.getElementById('drawBtn').style.display = '';
+  document.getElementById('result').classList.remove('show');
+  rotated = online.mySide === HAN;   // 내가 한(漢)이면 한 시점으로 자동 회전
+  document.getElementById('rotateBtn').classList.toggle('on', rotated);
+  setNotice('');
+  updateUI();
+  draw();
+}
+
+// ---- 내 수 전송 (doMove/pass에서 호출 — 로컬 선적용 후 전송, 409면 되돌림) ----
+async function sendMoveToServer(data, n, isRetry) {
+  let r;
+  try {
+    r = await apiAction({ type: 'move', n, data });
+  } catch (e) {
+    if (!isRetry) {
+      setNotice('⚠️ 서버 연결 실패 — 1초 후 재전송합니다…');
+      setTimeout(() => { if (online.active) sendMoveToServer(data, n, true); }, 1000);
+    } else {
+      rollbackLocalMove(n, '⚠️ 서버 연결 실패 — 수가 전송되지 않아 되돌렸습니다.');
+    }
+    return;
+  }
+  if (r.status === 409) {
+    rollbackLocalMove(n, '동기화 오류 — ' + (r.data.error || '수가 반영되지 않았습니다.'));
+    return;
+  }
+  if (!r.ok) {
+    rollbackLocalMove(n, '전송 실패 — ' + (r.data.error || `서버 오류 (${r.status})`));
+  }
+}
+
+// 서버가 거부한 내 수 되돌리기 — 내 수가 아직 마지막 항목으로 남아 있을 때만
+function rollbackLocalMove(n, msg) {
+  if (history.length - 1 === n + 1 && opp(cur().turn) === online.mySide) {
+    history.pop();
+    if (!resignedGame && !drawnGame) gameOver = false;   // 방금 수로 외통 처리됐다면 취소
+    selected = -1;
+    moveTargets = [];
+    document.getElementById('result').classList.remove('show');
+  }
+  setNotice(msg);
+  updateUI();
+  draw();
+}
+
+// ---- 원격 수 적용 ----
+function applyRemoteMove(data) {
+  const mv = (data && data.move) || {};
+  const fail = () => setNotice('⚠️ 동기화 오류 — 상대 수를 적용할 수 없습니다. 방을 나갔다가 새로 만들어 주세요.');
+  // 동시 착수 경합: 내 낙관적 수가 서버에서 거부되고 같은 번호의 상대 수가 도착 — 내 수를 되돌리고 상대 수 적용
+  if (data && typeof data.n === 'number' && data.n === history.length - 2 &&
+      history.length >= 2 && opp(cur().turn) === online.mySide) {
+    history.pop();
+    if (!resignedGame && !drawnGame) gameOver = false;
+    selected = -1;
+    moveTargets = [];
+    document.getElementById('result').classList.remove('show');
+  }
+  if (gameOver) return;
+  const s = cur();
+  if (data && typeof data.n === 'number' && data.n !== history.length - 1) { fail(); return; }
+  if (s.turn === online.mySide) { fail(); return; }
+  if (mv.kind === 'pass') {
+    if (isInCheck(s.board, s.turn)) { fail(); return; }   // 장군 중 쉬기 = 불법
+    onlineApplyingRemote = true;
+    try { pass(); } finally { onlineApplyingRemote = false; }
+  } else if (mv.kind === 'move') {
+    if (!isLegalMoveIdx(s.board, s.turn, mv.from, mv.to)) { fail(); return; }
+    onlineApplyingRemote = true;
+    try { doMove(mv.from, mv.to); } finally { onlineApplyingRemote = false; }
+  } else {
+    fail();
+  }
+}
+
+// ---- 종국 처리 (기권/합의 무승부/상대 판정 결과) ----
+function onlineScoreLine() {
+  const s = cur();
+  return `${SIDE_NAME[CHO]} 잡은 점수 ${capScore(s.captured.c).toFixed(1)} · ` +
+    `${SIDE_NAME[HAN]} 잡은 점수 ${(capScore(s.captured.h) + HAN_DUM).toFixed(1)} (덤 포함)`;
+}
+function finishOnlineGame(winnerSide, reasonText) {
+  if (gameOver) return;
+  gameOver = true;
+  selected = -1;
+  moveTargets = [];
+  const el = document.getElementById('result');
+  el.innerHTML = (winnerSide
+    ? `<b style="color:var(--accent)">${SIDE_NAME[winnerSide]} 승리!</b> (${reasonText})<br>`
+    : `<b style="color:var(--accent)">🤝 ${reasonText}</b><br>`) + onlineScoreLine();
+  el.classList.add('show');
+  setNotice('');
+  updateUI();
+  draw();
+}
+
+async function onlineResign() {
+  if (gameOver || !online.joined) return;
+  let r;
+  try {
+    r = await apiAction({ type: 'resign' });
+  } catch (e) {
+    setNotice('⚠️ 서버 연결 실패 — 기권이 전송되지 않았습니다. 다시 시도하세요.');
+    return;
+  }
+  if (!r.ok) { setNotice('기권 전송 실패 — ' + (r.data.error || `서버 오류 (${r.status})`)); return; }
+  finishOnlineGame(opp(online.mySide), `${SIDE_NAME[online.mySide]} 기권`);
+}
+
+async function onlineOfferDraw() {
+  if (gameOver || !online.joined || online.drawPending) return;
+  online.drawPending = true;
+  updateUI();
+  let r;
+  try {
+    r = await apiAction({ type: 'drawOffer' });
+  } catch (e) {
+    online.drawPending = false;
+    setNotice('⚠️ 서버 연결 실패 — 무승부 제안이 전송되지 않았습니다.');
+    updateUI();
+    return;
+  }
+  if (!r.ok) {
+    online.drawPending = false;
+    setNotice('제안 전송 실패 — ' + (r.data.error || `서버 오류 (${r.status})`));
+    updateUI();
+    return;
+  }
+  setNotice('🤝 무승부 제안을 보냈습니다 — 상대 응답을 기다립니다.');
+}
+
+// 상대의 무승부 제안: confirm 대신 오버레이 버튼으로 수락/거절
+function showDrawOfferOverlay() {
+  const bik = isBikjang(cur().board);
+  ovShow('🤝 무승부 제안',
+    `상대가 무승부를 제안했습니다.${bik ? '\n(빅장 — 관례상 무승부 상태입니다)' : ''}\n수락하시겠습니까?`, {
+    buttons: [
+      { label: '수락 (합의 무승부)', primary: true, fn: acceptDraw },
+      { label: '거절', fn: declineDraw },
+    ],
+  });
+}
+async function acceptDraw() {
+  ovHide();
+  let r;
+  try {
+    r = await apiAction({ type: 'drawAccept' });
+  } catch (e) {
+    setNotice('⚠️ 서버 연결 실패 — 수락이 전송되지 않았습니다.');
+    showDrawOfferOverlay();
+    return;
+  }
+  if (!r.ok) { setNotice('수락 전송 실패 — ' + (r.data.error || `서버 오류 (${r.status})`)); return; }
+  drawnGame = true;
+  finishOnlineGame(null, '합의 무승부' + (isBikjang(cur().board) ? ' — 빅장(궁 대면)' : ''));
+}
+async function declineDraw() {
+  ovHide();
+  try { await apiAction({ type: 'drawDecline' }); } catch (e) { /* 거절 통지 실패는 무시 */ }
+  setNotice('무승부 제안을 거절했습니다. 대국을 계속합니다.');
+}
+
+// ---- 종국 결과 보고 & 한판 더 ----
+async function sendResultToServer(winnerSide, reason) {
+  const winner = winnerSide ? playerOfSide(winnerSide) : 0;
+  try {
+    await apiAction({ type: 'result', data: { winner, reason } });
+  } catch (e) { /* 결과 보고 실패는 대국 진행에 영향 없음 */ }
+}
+
+async function onlineRematch() {
+  if (!online.active || !gameOver || online.myRematch) return;
+  online.myRematch = true;
+  updateUI();
+  let r;
+  try {
+    r = await apiAction({ type: 'rematch' });
+  } catch (e) {
+    online.myRematch = false;
+    setNotice('⚠️ 서버 연결 실패 — 다시 시도하세요.');
+    updateUI();
+    return;
+  }
+  if (!r.ok) {
+    online.myRematch = false;
+    setNotice('요청 실패 — ' + (r.data.error || `서버 오류 (${r.status})`));
+    updateUI();
+    return;
+  }
+  if (!online.oppRematch) setNotice('🔁 한판 더 요청을 보냈습니다 — 상대 수락을 기다립니다.');
+}
+
+// ---- 폴링 (1초) ----
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollOnce, 1000);
+}
+
+async function pollOnce() {
+  if (!online.active || pollBusy) return;
+  pollBusy = true;
+  try {
+    const r = await fetch(`${API}/api/poll?room=${online.room}&token=${online.token}&since=${online.seq}`);
+    if (!r.ok) {
+      if (r.status === 404 || r.status === 403) {
+        leaveOnline('방이 만료되었습니다 — 로컬 대국으로 돌아갑니다.');
+        return;
+      }
+      throw new Error('poll ' + r.status);
+    }
+    const d = await r.json();
+    if (pollFails >= 3) setNotice('서버 연결이 복구되었습니다.');
+    pollFails = 0;
+    if (!online.active) return;
+    if (!online.joined && d.joined) {
+      online.joined = true;
+      ovHide();
+      setNotice('상대가 입장했습니다 — 대국 시작! 온라인 대국은 시간제한·무르기가 없습니다.');
+      updateUI();
+      draw();
+    }
+    for (const ev of d.events || []) {
+      try { handleOnlineEvent(ev); }
+      catch (err) { setNotice('⚠️ 동기화 오류 — 이벤트 적용에 실패했습니다.'); }
+      online.seq = ev.seq;
+      if (!online.active) return;    // 이벤트 처리 중 방을 나간 경우
+    }
+    online.seq = Math.max(online.seq, d.seq || 0);
+  } catch (e) {
+    pollFails++;
+    if (pollFails === 3) setNotice('⚠️ 서버 연결 불안정 — 자동 재시도 중…');
+  } finally {
+    pollBusy = false;
+  }
+}
+
+function handleOnlineEvent(ev) {
+  const mine = ev.by === online.player;
+  switch (ev.t) {
+    case 'join':
+      break;                         // poll의 joined 플래그로 처리
+    case 'move':
+      if (mine) break;               // 내 수 에코 — 이미 로컬 적용됨
+      applyRemoteMove(ev.data || {});
+      break;
+    case 'resign':
+      if (mine) break;
+      finishOnlineGame(online.mySide, `${SIDE_NAME[opp(online.mySide)]} 기권`);
+      break;
+    case 'drawOffer':
+      if (mine) break;
+      if (!gameOver) showDrawOfferOverlay();
+      break;
+    case 'drawAccept':
+      if (mine) break;
+      online.drawPending = false;
+      if (!gameOver) { drawnGame = true; finishOnlineGame(null, '합의 무승부'); }
+      break;
+    case 'drawDecline':
+      if (mine) break;
+      online.drawPending = false;
+      setNotice('상대가 무승부 제안을 거절했습니다. 대국을 계속합니다.');
+      updateUI();
+      break;
+    case 'rematch':
+      if (mine) break;
+      online.oppRematch = true;
+      setNotice('상대가 🔁 한판 더를 원합니다 — "한판 더" 버튼으로 수락하세요.');
+      break;
+    case 'restart': {
+      const d = ev.data || {};
+      online.gameNo = d.game_no || 0;
+      online.first = d.first || 1;   // 리매치마다 선공(초) 스왑
+      online.mySide = sideOfPlayer(online.player);
+      onlineStartGame();
+      setNotice(`🔁 ${online.gameNo + 1}번째 판 시작 — 나 = ${mySideTag()}`);
+      break;
+    }
+    case 'result':
+      if (mine) break;
+      if (!gameOver) {
+        const d = ev.data || {};
+        const winnerSide = (d.winner === 1 || d.winner === 2) ? sideOfPlayer(d.winner) : null;
+        finishOnlineGame(winnerSide, d.reason || '종국');
+      }
+      break;
+  }
+}
+
+document.getElementById('onlineBtn').addEventListener('click', ovMenu);
+document.getElementById('rematchBtn').addEventListener('click', onlineRematch);
+document.getElementById('ovInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('ovInput').style.display !== 'none') joinRoom();
+});
+// ===== JANGGI ONLINE END =====
+
+newGame();
+</script>
+</body>
+</html>

@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>만칼라</title>
+<style>
+  :root {
+    --bg: #1a1d24;
+    --panel: #242832;
+    --text: #e8e6e0;
+    --muted: #9a9788;
+    --accent: #d4a24e;
+    --seed: 13px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Apple SD Gothic Neo", "Pretendard", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px 16px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  #status {
+    margin: 14px 0 4px;
+    font-size: 16px;
+    font-weight: 600;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+  }
+  #notice {
+    min-height: 20px;
+    font-size: 13px;
+    color: var(--accent);
+    margin-bottom: 8px;
+    text-align: center;
+    max-width: 560px;
+  }
+  .turn-dot {
+    width: 16px; height: 16px; border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 1px 3px rgba(0,0,0,.5);
+    flex-shrink: 0;
+  }
+  .turn-dot.p0 { background: radial-gradient(circle at 35% 35%, #ffdf9e, #c8963e); }
+  .turn-dot.p1 { background: radial-gradient(circle at 35% 35%, #d6e2f5, #7c8aa5); }
+
+  .side-tag { color: var(--muted); font-size: 12px; margin: 4px 0; }
+
+  #board {
+    display: grid;
+    grid-template-columns: 1.15fr repeat(6, 1fr) 1.15fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 10px;
+    width: min(640px, 100%);
+    padding: 14px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #a9814f, #7e5c33);
+    box-shadow: 0 8px 32px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.15);
+    touch-action: manipulation;
+  }
+  .pit {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 35%, #5b4226, #382713 75%);
+    box-shadow: inset 0 5px 12px rgba(0,0,0,.65), 0 1px 0 rgba(255,255,255,.12);
+    cursor: default;
+  }
+  .pit.store {
+    aspect-ratio: auto;
+    grid-row: 1 / 3;
+    border-radius: 999px;
+    background: radial-gradient(circle at 50% 30%, #55432a, #332413 80%);
+  }
+  .pit.turn { box-shadow: inset 0 5px 12px rgba(0,0,0,.65), 0 0 0 2px rgba(212,162,78,.35); }
+  .pit.clickable { cursor: pointer; }
+  .pit.clickable:hover, .pit.clickable:active {
+    box-shadow: inset 0 5px 12px rgba(0,0,0,.65), 0 0 0 3px var(--accent);
+  }
+  .pit.src  { box-shadow: inset 0 5px 12px rgba(0,0,0,.65), 0 0 0 2px rgba(232,230,224,.4); }
+  .pit.drop { box-shadow: inset 0 5px 12px rgba(0,0,0,.65), 0 0 0 3px var(--accent); }
+  .pit.cap  { box-shadow: inset 0 5px 12px rgba(0,0,0,.65), 0 0 0 3px #e05555; }
+  .pit.last { box-shadow: inset 0 5px 12px rgba(0,0,0,.65), 0 0 0 2px rgba(79,195,247,.55); }
+
+  .seeds { position: absolute; inset: 0; pointer-events: none; }
+  .seed {
+    position: absolute;
+    width: var(--seed); height: var(--seed);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 1px 2px rgba(0,0,0,.5);
+  }
+  .seed.s0 { background: radial-gradient(circle at 35% 30%, #f5ecd2, #cbb98a); }
+  .seed.s1 { background: radial-gradient(circle at 35% 30%, #e0ac77, #a9713d); }
+  .seed.s2 { background: radial-gradient(circle at 35% 30%, #c2d6b2, #7f9a6e); }
+  .seed.s3 { background: radial-gradient(circle at 35% 30%, #e2a191, #a95f4c); }
+  @keyframes seedpop { from { transform: translate(-50%,-50%) scale(0); } to { transform: translate(-50%,-50%) scale(1); } }
+  .seed.new { animation: seedpop .18s ease-out; }
+
+  .cnt {
+    position: absolute;
+    left: 50%; bottom: 5%;
+    transform: translateX(-50%);
+    font-size: 14px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+    background: rgba(0,0,0,.45);
+    border-radius: 10px;
+    padding: 1px 8px;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .store .cnt { bottom: 10px; font-size: 16px; color: var(--accent); }
+
+  .bar {
+    display: flex;
+    gap: 20px;
+    margin-top: 14px;
+    background: var(--panel);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .bar b { color: var(--accent); }
+  .controls { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; justify-content: center; align-items: center; }
+  button {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background .15s;
+  }
+  button:hover { background: #2f3442; }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent); color: #1a1d24; border-color: var(--accent); font-weight: 700; }
+  button.primary:hover:not(:disabled) { background: #e0b160; }
+  select {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 10px; max-width: 560px; text-align: center; line-height: 1.6; }
+  a.home { color: var(--muted); font-size: 12px; margin-top: 16px; text-decoration: none; }
+  a.home:hover { color: var(--accent); }
+  #overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,17,22,.97);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    text-align: center;
+    padding: 24px;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 22px; margin-bottom: 12px; }
+  #overlay p { color: var(--muted); font-size: 15px; line-height: 1.7; max-width: 440px; white-space: pre-line; }
+  #overlayBtns { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; min-width: 280px; }
+  @media (max-width: 600px) {
+    :root { --seed: 8px; }
+    body { padding: 12px 8px; }
+    h1 { font-size: 18px; }
+    .sub { font-size: 12px; }
+    #status { font-size: 14px; }
+    #notice { font-size: 12px; }
+    .side-tag { font-size: 11px; }
+    #board { gap: 5px; padding: 8px; border-radius: 12px; }
+    .cnt { font-size: 11px; padding: 0 5px; bottom: 2%; }
+    .store .cnt { font-size: 12px; bottom: 6px; }
+    .bar { gap: 10px; padding: 8px 12px; font-size: 12px; }
+    .controls { gap: 6px; }
+    button, select { padding: 8px 12px; font-size: 13px; }
+    .hint { font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+  <h1>만칼라 <span>Mancala</span></h1>
+  <div class="sub">칼라하(Kalah) 룰 · 구멍 6 × 씨앗 4 · 로컬 2인 / AI 대전 · 반시계 방향</div>
+
+  <div id="status"></div>
+  <div id="notice"></div>
+
+  <div class="side-tag" id="topTag"></div>
+  <div id="board"></div>
+  <div class="side-tag" id="bottomTag"></div>
+
+  <div class="bar" id="infoBar"></div>
+
+  <div class="controls">
+    <button id="undoBtn">무르기</button>
+    <button id="resignBtn">🏳️ 기권</button>
+    <select id="oppSel" title="새 대국부터 적용">
+      <option value="human">상대: 사람</option>
+      <option value="easy">AI 쉬움</option>
+      <option value="normal">AI 보통</option>
+      <option value="hard">AI 어려움</option>
+    </select>
+    <select id="mySideSel" title="새 대국부터 적용" style="display:none">
+      <option value="me">선공: 나</option>
+      <option value="ai">선공: AI</option>
+    </select>
+    <button id="newBtn">새 대국</button>
+  </div>
+
+  <div class="hint">
+    내 구멍을 누르면 씨앗을 집어 반시계 방향으로 하나씩 뿌립니다 (상대 저장고는 건너뜀).
+    마지막 씨앗이 <b>내 저장고</b>에 들어가면 <b>한 번 더</b>, <b>내 빈 구멍</b>에 떨어지면 맞은편 상대 씨앗과 그 씨앗 1개를 <b>포획</b>합니다
+    (맞은편이 비어 있으면 포획 없음 — 표준). 한쪽 구멍 6개가 모두 비면 종국 — 남은 씨앗은 각자 저장고로 가고, 많은 쪽이 승리합니다.
+  </div>
+  <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <div id="overlay">
+    <h2 id="overlayTitle"></h2>
+    <p id="overlayDesc"></p>
+    <div id="overlayBtns"></div>
+  </div>
+
+<script>
+// ==================== 규칙 (순수 함수 — 온라인/서버 대비 분리) ====================
+// 판 표현: 길이 14 배열. 0..5 = 아래(플레이어 0) 구멍, 6 = 아래 저장고,
+//          7..12 = 위(플레이어 1) 구멍, 13 = 위 저장고. 뿌리기는 인덱스 증가 = 반시계.
+// DOM/전역 상태 무의존 — 테스트·온라인 서버에서 그대로 추출해 사용.
+/* __MANCALA_CORE_START__ */
+function mcInit() {
+  var b = [0,0,0,0,0,0, 0, 0,0,0,0,0,0, 0];
+  for (var i = 0; i < 6; i++) { b[i] = 4; b[i + 7] = 4; }
+  return b;
+}
+function mcStoreOf(p) { return p === 0 ? 6 : 13; }
+function mcIsOwnPit(p, i) { return p === 0 ? (i >= 0 && i <= 5) : (i >= 7 && i <= 12); }
+function mcOpposite(i) { return 12 - i; }   // 구멍 i(0..5 ↔ 12..7)의 맞은편
+function mcSideEmpty(b, p) {
+  var lo = p === 0 ? 0 : 7;
+  for (var i = lo; i < lo + 6; i++) if (b[i] > 0) return false;
+  return true;
+}
+function mcLegalMoves(b, p) {
+  var lo = p === 0 ? 0 : 7, res = [];
+  for (var i = lo; i < lo + 6; i++) if (b[i] > 0) res.push(i);
+  return res;
+}
+// 착수 적용 (원본 불변). 불법 수면 null.
+// 반환: { board, drops(씨앗이 떨어진 구멍 순서), last, again(한번더),
+//         capture:{pit,opposite,gained}|null, ended, sweep:{p0,p1}|null }
+function mcApplyMove(b0, p, pit) {
+  if (typeof pit !== 'number' || !mcIsOwnPit(p, pit) || b0[pit] === 0) return null;
+  var b = b0.slice();
+  var myStore = mcStoreOf(p), oppStore = mcStoreOf(1 - p);
+  var seeds = b[pit], pos = pit, drops = [];
+  b[pit] = 0;
+  while (seeds > 0) {
+    pos = (pos + 1) % 14;
+    if (pos === oppStore) continue;        // 상대 저장고 건너뜀
+    b[pos]++; seeds--; drops.push(pos);
+  }
+  var again = pos === myStore;             // 마지막 씨앗이 내 저장고 → 한 번 더
+  var capture = null;
+  if (!again && mcIsOwnPit(p, pos) && b[pos] === 1 && b[mcOpposite(pos)] > 0) {
+    var opp = mcOpposite(pos);             // 내 빈 구멍 도착 + 맞은편에 씨앗 → 포획
+    var gained = b[opp] + 1;               // (맞은편이 비어 있으면 포획 없음 — 표준)
+    b[myStore] += gained;
+    b[pos] = 0; b[opp] = 0;
+    capture = { pit: pos, opposite: opp, gained: gained };
+  }
+  var ended = mcSideEmpty(b, 0) || mcSideEmpty(b, 1);
+  var sweep = null;
+  if (ended) {                             // 종국 정산: 남은 씨앗은 각자 저장고로
+    var s0 = 0, s1 = 0, i;
+    for (i = 0; i <= 5; i++) { s0 += b[i]; b[i] = 0; }
+    for (i = 7; i <= 12; i++) { s1 += b[i]; b[i] = 0; }
+    b[6] += s0; b[13] += s1;
+    sweep = { p0: s0, p1: s1 };
+  }
+  return { board: b, drops: drops, last: pos, again: again, capture: capture, ended: ended, sweep: sweep };
+}
+// 종국 후 승자: 0 | 1 | -1(무승부)
+function mcWinner(b) { return b[6] > b[13] ? 0 : b[13] > b[6] ? 1 : -1; }
+/* __MANCALA_CORE_END__ */
+
+// ==================== AI (알파베타 + 반복 심화) ====================
+/* __MANCALA_AI_START__ */
+// pit에서 seeds개를 뿌렸을 때 마지막 씨앗이 떨어지는 위치 (상대 저장고 스킵)
+function mcLanding(pit, seeds, p) {
+  var oppStore = p === 0 ? 13 : 6, pos = pit;
+  while (seeds > 0) {
+    pos = (pos + 1) % 14;
+    if (pos === oppStore) continue;
+    seeds--;
+  }
+  return pos;
+}
+// '한 번 더'를 만들 수 있는 구멍 수
+function mcExtraChances(b, p) {
+  var lo = p === 0 ? 0 : 7, ms = mcStoreOf(p), n = 0;
+  for (var i = lo; i < lo + 6; i++)
+    if (b[i] > 0 && mcLanding(i, b[i], p) === ms) n++;
+  return n;
+}
+// 지금 둘 수 있는 최대 포획량 (근사 휴리스틱 — 한 바퀴 초과분의 자기 충전은 무시)
+function mcCaptureThreat(b, p) {
+  var lo = p === 0 ? 0 : 7, ms = mcStoreOf(p), best = 0;
+  for (var i = lo; i < lo + 6; i++) {
+    var s = b[i];
+    if (s === 0 || s > 13) continue;
+    var land = mcLanding(i, s, p);
+    if (land === ms || !mcIsOwnPit(p, land)) continue;
+    var willBeOne = s === 13 ? land === i : (b[land] === 0 && land !== i);
+    if (willBeOne && b[mcOpposite(land)] > 0) {
+      var g = b[mcOpposite(land)] + 1;
+      if (g > best) best = g;
+    }
+  }
+  return best;
+}
+// 평가: 저장고 차(지배적) + 판 위 씨앗 차 + 한번더 기회 + 포획 위협
+function mcEvaluate(b, me) {
+  var op = 1 - me;
+  var score = (b[mcStoreOf(me)] - b[mcStoreOf(op)]) * 100;
+  var lo = me === 0 ? 0 : 7, olo = op === 0 ? 0 : 7, mySide = 0, opSide = 0;
+  for (var i = 0; i < 6; i++) { mySide += b[lo + i]; opSide += b[olo + i]; }
+  score += (mySide - opSide) * 2;
+  score += (mcExtraChances(b, me) - mcExtraChances(b, op)) * 20;
+  score += (mcCaptureThreat(b, me) - mcCaptureThreat(b, op)) * 12;
+  return score;
+}
+// 무브 오더링: 한번더 > 포획 > 씨앗 많은 구멍
+function mcOrderMoves(b, p, moves) {
+  var ms = mcStoreOf(p);
+  return moves.map(function (m) {
+    var land = mcLanding(m, b[m], p), key;
+    if (land === ms) key = 1000;
+    else if (mcIsOwnPit(p, land) && land !== m && b[land] === 0 && b[mcOpposite(land)] > 0)
+      key = 500 + b[mcOpposite(land)];
+    else key = b[m] * 0.1;
+    return { m: m, k: key };
+  }).sort(function (a, c) { return c.k - a.k; }).map(function (x) { return x.m; });
+}
+function mcTerminalVal(board, me) {
+  var diff = board[mcStoreOf(me)] - board[mcStoreOf(1 - me)];
+  return diff > 0 ? 100000 + diff : diff < 0 ? -100000 + diff : 0;
+}
+// 알파베타 (한번더 = 같은 플레이어가 이어서 탐색, depth는 항상 소모)
+function mcSearch(b, player, depth, alpha, beta, me, dl) {
+  if (depth <= 0) return mcEvaluate(b, me);
+  if (dl && Date.now() > dl.t) { dl.abort = true; return mcEvaluate(b, me); }
+  var moves = mcOrderMoves(b, player, mcLegalMoves(b, player));
+  if (moves.length === 0) return mcEvaluate(b, me);   // 방어 (정상 흐름에선 종국이 먼저 정산됨)
+  var maxing = player === me;
+  var best = maxing ? -Infinity : Infinity;
+  for (var k = 0; k < moves.length; k++) {
+    var r = mcApplyMove(b, player, moves[k]), val;
+    if (r.ended) val = mcTerminalVal(r.board, me);
+    else val = mcSearch(r.board, r.again ? player : 1 - player, depth - 1, alpha, beta, me, dl);
+    if (dl && dl.abort) return best !== -Infinity && best !== Infinity ? best : val;
+    if (maxing) { if (val > best) best = val; if (best > alpha) alpha = best; }
+    else { if (val < best) best = val; if (best < beta) beta = best; }
+    if (alpha >= beta) break;
+  }
+  return best;
+}
+function mcRootSearch(b, player, depth, dl) {
+  var moves = mcOrderMoves(b, player, mcLegalMoves(b, player));
+  var alpha = -Infinity, best = -Infinity, bestMove = moves.length ? moves[0] : -1;
+  for (var k = 0; k < moves.length; k++) {
+    var r = mcApplyMove(b, player, moves[k]), val;
+    if (r.ended) val = mcTerminalVal(r.board, player);
+    else val = mcSearch(r.board, r.again ? player : 1 - player, depth - 1, alpha, Infinity, player, dl);
+    if (dl && dl.abort) break;
+    if (val > best) { best = val; bestMove = moves[k]; }
+    if (best > alpha) alpha = best;
+  }
+  return { move: bestMove, val: best };
+}
+// 레벨별 최선 수. opts: { rng, timeMs(hard 시간 제한), maxDepth }
+function mcBestMove(b, player, level, opts) {
+  opts = opts || {};
+  var rng = opts.rng || Math.random;
+  var moves = mcLegalMoves(b, player);
+  if (moves.length === 0) return -1;
+  if (moves.length === 1) return moves[0];
+  if (level === 'easy' && rng() < 0.35) return moves[(rng() * moves.length) | 0];
+  if (level === 'hard') {
+    var dl = { t: Date.now() + (opts.timeMs || 1200), abort: false };
+    var best = moves[0];
+    for (var d = 4; d <= (opts.maxDepth || 16); d += 2) {   // 반복 심화 — 보통 depth 12+ 도달
+      var res = mcRootSearch(b, player, d, dl);
+      if (dl.abort) break;
+      best = res.move;
+      if (res.val >= 100000) break;   // 필승 확정
+    }
+    return best;
+  }
+  return mcRootSearch(b, player, level === 'easy' ? 2 : 6, null).move;
+}
+/* __MANCALA_AI_END__ */
+
+// ==================== 게임 상태 / 흐름 ====================
+const AI_LEVEL_NAMES = { easy: '쉬움', normal: '보통', hard: '어려움' };
+let board, turn, winner, resigned, history, moveCount, lastDrop, endSweep;
+let opponent = 'human';       // 'human' | 'easy' | 'normal' | 'hard'
+const humanPlayer = 0, aiPlayer = 1;   // AI 모드: 사람은 항상 아래쪽 (선공 여부만 선택)
+let firstMover = 0;
+let animating = false, animTimer = null, animToken = 0;
+let aiThinking = false, aiToken = 0;
+
+function isAiGame() { return opponent !== 'human'; }
+function aiInputLocked() { return isAiGame() && winner === null && (aiThinking || turn === aiPlayer); }
+
+function newGame() {
+  animToken++;
+  if (animTimer) clearInterval(animTimer);
+  animating = false;
+  aiThinking = false;
+  aiToken++;
+  opponent = document.getElementById('oppSel').value;
+  board = mcInit();
+  winner = null;
+  resigned = false;
+  history = [];
+  moveCount = 0;
+  lastDrop = -1;
+  endSweep = null;
+  firstMover = (isAiGame() && document.getElementById('mySideSel').value === 'ai') ? aiPlayer : 0;
+  turn = firstMover;
+  hideOverlay();
+  setNotice('');
+  render();
+  updateUI();
+  maybeTriggerAI();
+}
+
+function setNotice(msg) { document.getElementById('notice').textContent = msg || ''; }
+
+function sideName(p) {
+  if (isAiGame()) return p === humanPlayer ? '나' : 'AI';
+  return p === 0 ? 'P1(아래)' : 'P2(위)';
+}
+function playerLabel(p) {
+  if (isAiGame()) return p === humanPlayer ? '나' : 'AI';
+  return p === 0 ? '플레이어 1 (아래)' : '플레이어 2 (위)';
+}
+
+// ---- 착수 ----
+function tryMove(pit) {
+  if (winner !== null || animating || aiInputLocked()) return;
+  if (!mcIsOwnPit(turn, pit) || board[pit] === 0) return;
+  playMove(pit);
+}
+
+function playMove(pit) {
+  const res = mcApplyMove(board, turn, pit);
+  if (!res) return;
+  const mover = turn;
+  history.push({ board: board.slice(), turn: turn, moveCount: moveCount });
+  moveCount++;
+  setNotice('');
+  animateMove(pit, res, () => {
+    board = res.board;
+    lastDrop = res.last;
+    animating = false;
+    if (res.ended) {
+      endSweep = res.sweep;
+      winner = mcWinner(board);
+      render(); updateUI();
+      showEndOverlay();
+      return;
+    }
+    if (res.again) {
+      setNotice(`✨ ${playerLabel(mover)} 한 번 더!`);
+    } else {
+      if (res.capture) setNotice(`💥 포획! ${playerLabel(mover)} +${res.capture.gained}`);
+      turn = 1 - mover;
+    }
+    render(); updateUI();
+    maybeTriggerAI();
+  });
+}
+
+// 뿌리기 순차 애니메이션 — disp(표시용 사본)에 한 알씩 반영
+function animateMove(pit, res, done) {
+  animating = true;
+  const token = ++animToken;
+  const disp = board.slice();
+  disp[pit] = 0;
+  renderBoard(disp, { active: pit });
+  updateUI();
+  const stepMs = res.drops.length > 12 ? 85 : 145;
+  let k = 0;
+  animTimer = setInterval(() => {
+    if (token !== animToken) { clearInterval(animTimer); return; }
+    if (k < res.drops.length) {
+      disp[res.drops[k]]++;
+      renderBoard(disp, { drop: res.drops[k], active: pit });
+      k++;
+    } else {
+      clearInterval(animTimer);
+      if (res.capture) {
+        renderBoard(disp, { capture: res.capture, active: pit });
+        setTimeout(() => { if (token === animToken) done(); }, 520);
+      } else {
+        setTimeout(() => { if (token === animToken) done(); }, 60);
+      }
+    }
+  }, stepMs);
+}
+
+// ---- 무르기 (AI 모드: 마지막 내 차례 시점까지 — 한번더 연쇄 포함 전부 되돌림) ----
+function undo() {
+  if (animating) return;
+  if (aiThinking) { setNotice('AI가 생각하는 중에는 무를 수 없습니다.'); return; }
+  if (winner !== null && resigned) {
+    winner = null; resigned = false;
+    setNotice(''); render(); updateUI(); maybeTriggerAI();
+    return;
+  }
+  let target;
+  if (isAiGame()) {
+    let k = history.length - 1;
+    while (k >= 0 && history[k].turn !== humanPlayer) k--;
+    if (k < 0) { setNotice('되돌릴 내 수가 없습니다.'); return; }
+    target = k;
+  } else {
+    if (history.length === 0) { setNotice('되돌릴 수가 없습니다.'); return; }
+    target = history.length - 1;
+  }
+  const h = history[target];
+  history.length = target;
+  board = h.board.slice();
+  turn = h.turn;
+  moveCount = h.moveCount;
+  winner = null;
+  resigned = false;
+  lastDrop = -1;
+  endSweep = null;
+  setNotice('');
+  hideOverlay();
+  render(); updateUI();
+}
+
+function resign() {
+  if (winner !== null || animating) return;
+  aiToken++;
+  aiThinking = false;
+  winner = isAiGame() ? aiPlayer : 1 - turn;
+  resigned = true;
+  setNotice('');
+  render(); updateUI();
+  showEndOverlay();
+}
+
+// ---- AI 트리거 ----
+function maybeTriggerAI() {
+  if (!isAiGame() || winner !== null || animating || turn !== aiPlayer) return;
+  aiThinking = true;
+  const token = ++aiToken;
+  updateUI();
+  setTimeout(() => {
+    if (token !== aiToken) return;
+    const mv = mcBestMove(board, aiPlayer, opponent);
+    aiThinking = false;
+    if (token !== aiToken || winner !== null) return;
+    if (mv < 0) { updateUI(); return; }
+    playMove(mv);       // 애니메이션 종료 후 한번더면 maybeTriggerAI가 다시 호출됨
+  }, 120);
+}
+
+// ==================== 렌더링 ====================
+const boardEl = document.getElementById('board');
+const pitEls = [], seedEls = [], cntEls = [];
+(function buildBoard() {
+  function make(i, col, row, isStore) {
+    const d = document.createElement('div');
+    d.className = isStore ? 'pit store' : 'pit';
+    d.style.gridColumn = col;
+    d.style.gridRow = row;
+    d.innerHTML = '<div class="seeds"></div><div class="cnt">0</div>';
+    d.addEventListener('click', () => { if (!isStore) tryMove(i); });
+    boardEl.appendChild(d);
+    pitEls[i] = d;
+    seedEls[i] = d.firstChild;
+    cntEls[i] = d.lastChild;
+  }
+  make(13, '1', '1 / 3', true);                                  // 상대(위) 저장고 — 왼쪽
+  for (let k = 0; k < 6; k++) make(12 - k, String(2 + k), '1', false);  // 윗줄: 12..7 (반시계 →왼쪽)
+  for (let k = 0; k < 6; k++) make(k, String(2 + k), '2', false);       // 아랫줄: 0..5 (→오른쪽)
+  make(6, '8', '1 / 3', true);                                   // 내(아래) 저장고 — 오른쪽
+})();
+
+// 씨앗 배치 좌표(%): 중앙 1 + 링 7 + 링 12 + 링 16 = 최대 36개 표시 (초과분은 숫자로)
+const SEED_POS = (() => {
+  const pos = [[50, 47]];
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2 - 1.1;
+    pos.push([50 + 17 * Math.cos(a), 47 + 17 * Math.sin(a)]);
+  }
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2 + 0.3;
+    pos.push([50 + 30 * Math.cos(a), 47 + 30 * Math.sin(a)]);
+  }
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2 - 0.2;
+    pos.push([50 + 40 * Math.cos(a), 47 + 40 * Math.sin(a)]);
+  }
+  return pos;
+})();
+function jitter(i, k) {
+  const h = ((i * 2654435761 + k * 40503) >>> 0) % 961;
+  return [((h % 31) - 15) / 5.5, ((((h / 31) | 0) % 31) - 15) / 5.5];
+}
+
+function renderPit(i, count, popLast) {
+  const shown = Math.min(count, SEED_POS.length);
+  let html = '';
+  for (let k = 0; k < shown; k++) {
+    const j = jitter(i, k);
+    const x = (SEED_POS[k][0] + j[0]).toFixed(1), y = (SEED_POS[k][1] + j[1]).toFixed(1);
+    html += `<span class="seed s${(i + k) % 4}${popLast && k === shown - 1 ? ' new' : ''}" style="left:${x}%;top:${y}%"></span>`;
+  }
+  seedEls[i].innerHTML = html;
+  cntEls[i].textContent = count;
+}
+
+function renderBoard(b, fx) {
+  for (let i = 0; i < 14; i++) {
+    renderPit(i, b[i], !!(fx && fx.drop === i));
+    const el = pitEls[i];
+    const isStore = i === 6 || i === 13;
+    el.classList.toggle('src', !!(fx && fx.active === i));
+    el.classList.toggle('drop', !!(fx && fx.drop === i));
+    el.classList.toggle('cap', !!(fx && fx.capture && (i === fx.capture.pit || i === fx.capture.opposite)));
+    el.classList.toggle('last', !fx && !animating && winner === null && lastDrop === i);
+    const mine = winner === null && !animating && !isStore && mcIsOwnPit(turn, i);
+    el.classList.toggle('turn', mine);
+    el.classList.toggle('clickable', mine && b[i] > 0 && !aiInputLocked());
+  }
+}
+function render() { renderBoard(board, null); }
+
+// ==================== UI ====================
+function updateUI() {
+  const status = document.getElementById('status');
+  if (winner === -1) {
+    status.innerHTML = `🤝 무승부 — ${board[6]} : ${board[13]}`;
+  } else if (winner !== null) {
+    status.innerHTML = `🏆 ${playerLabel(winner)} ${resigned ? '기권승' : '승리'}!`;
+  } else if (isAiGame() && (aiThinking || turn === aiPlayer)) {
+    status.innerHTML = '🤖 AI 생각 중…';
+  } else {
+    status.innerHTML = `<span class="turn-dot ${turn === 0 ? 'p0' : 'p1'}"></span> ${playerLabel(turn)} 차례`;
+  }
+  document.getElementById('infoBar').innerHTML =
+    `<span>${sideName(0)} 저장고 <b>${board[6]}</b></span>` +
+    `<span>${sideName(1)} 저장고 <b>${board[13]}</b></span>` +
+    `<span>수순 <b>${moveCount}</b></span>` +
+    (isAiGame() ? `<span>상대 <b>AI ${AI_LEVEL_NAMES[opponent]}</b> · 선공 ${firstMover === humanPlayer ? '나' : 'AI'}</span>` : '');
+  document.getElementById('topTag').textContent = `◀ ${sideName(1)} 쪽 (반시계 진행)`;
+  document.getElementById('bottomTag').textContent = `${sideName(0)} 쪽 ▶ · 내 저장고는 오른쪽`;
+  document.getElementById('undoBtn').disabled = animating || aiThinking ||
+    (winner !== null && resigned ? false
+      : (isAiGame() ? !history.some(h => h.turn === humanPlayer) : history.length === 0));
+  document.getElementById('resignBtn').disabled = winner !== null || animating;
+}
+
+function showOverlay(title, desc, buttons) {
+  document.getElementById('overlayTitle').textContent = title;
+  document.getElementById('overlayDesc').textContent = desc;
+  const wrap = document.getElementById('overlayBtns');
+  wrap.innerHTML = '';
+  buttons.forEach(([label, cb], i) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    if (i === 0) b.className = 'primary';
+    b.addEventListener('click', cb);
+    wrap.appendChild(b);
+  });
+  document.getElementById('overlay').classList.add('show');
+}
+function hideOverlay() { document.getElementById('overlay').classList.remove('show'); }
+
+function showEndOverlay() {
+  let title;
+  if (winner === -1) title = '🤝 무승부';
+  else title = `🏆 ${playerLabel(winner)} ${resigned ? '기권승' : '승리'}!`;
+  let desc = `최종 — ${sideName(0)} ${board[6]} : ${board[13]} ${sideName(1)}`;
+  if (endSweep && (endSweep.p0 > 0 || endSweep.p1 > 0))
+    desc += `\n종국 정산: ${sideName(0)} +${endSweep.p0} · ${sideName(1)} +${endSweep.p1} (남은 씨앗은 각자 저장고로)`;
+  if (resigned) desc += '\n기권으로 종료되었습니다.';
+  showOverlay(title, desc, [
+    ['새 대국', () => newGame()],
+    ['판 보기', hideOverlay],
+  ]);
+}
+
+// ---- 컨트롤 ----
+function gameInProgress() { return moveCount > 0 && winner === null; }
+function onSettingChange() {
+  if (gameInProgress()) setNotice('변경한 설정은 다음 "새 대국"부터 적용됩니다.');
+  else newGame();
+}
+document.getElementById('undoBtn').addEventListener('click', undo);
+document.getElementById('resignBtn').addEventListener('click', resign);
+document.getElementById('newBtn').addEventListener('click', newGame);
+document.getElementById('oppSel').addEventListener('change', () => {
+  document.getElementById('mySideSel').style.display =
+    document.getElementById('oppSel').value === 'human' ? 'none' : '';
+  onSettingChange();
+});
+document.getElementById('mySideSel').addEventListener('change', onSettingChange);
+
+newGame();
+</script>
+</body>
+</html>

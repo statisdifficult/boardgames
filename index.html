@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>보드게임 세트</title>
+<style>
+  :root {
+    --bg: #1a1d24;
+    --panel: #242832;
+    --text: #e8e6e0;
+    --muted: #9a9788;
+    --accent: #d4a24e;
+    --hidden: #8b5cf6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Apple SD Gothic Neo", "Pretendard", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 48px 16px;
+  }
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 14px; margin-top: 6px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 36px;
+    width: 100%;
+    max-width: 780px;
+  }
+  a.card {
+    background: var(--panel);
+    border: 1px solid #3a3f4d;
+    border-radius: 12px;
+    padding: 24px 20px;
+    text-decoration: none;
+    color: var(--text);
+    transition: transform .15s, border-color .15s, box-shadow .15s;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  a.card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  }
+  a.card.featured { border-color: var(--hidden); }
+  a.card.featured:hover { border-color: #a78bfa; }
+  .icon { font-size: 34px; line-height: 1; }
+  .name { font-size: 18px; font-weight: 700; }
+  .name em { font-style: normal; color: var(--accent); font-size: 13px; font-weight: 400; margin-left: 6px; }
+  .desc { color: var(--muted); font-size: 13px; line-height: 1.6; }
+  .badge {
+    align-self: flex-start;
+    font-size: 11px;
+    color: #fff;
+    background: var(--hidden);
+    border-radius: 99px;
+    padding: 3px 10px;
+    font-weight: 700;
+  }
+  footer { margin-top: 40px; color: var(--muted); font-size: 12px; }
+  @media (max-width: 600px) {
+    body { padding: 28px 12px; }
+    h1 { font-size: 22px; }
+    .sub { font-size: 13px; }
+    .grid { gap: 12px; margin-top: 24px; }
+    a.card { padding: 18px 16px; }
+    .icon { font-size: 28px; }
+  }
+</style>
+</head>
+<body>
+  <h1>보드게임 <span>세트</span></h1>
+  <div class="sub">로컬 2인 대전 — 하고 싶은 게임을 고르세요</div>
+
+  <div class="grid">
+    <a class="card featured" href="batoo/index.html">
+      <span class="badge">오리지널 재현</span>
+      <span class="icon">🕶️</span>
+      <span class="name">바투 <em>Batoo</em></span>
+      <span class="desc">2009년 바둑 변형 게임 재현. 베이스빌드 · 턴베팅 · 히든 · 스캔 · 포인트 필드.</span>
+    </a>
+    <a class="card" href="baduk/index.html">
+      <span class="icon">⚫</span>
+      <span class="name">바둑 <em>Go</em></span>
+      <span class="desc">9×9 / 13×13 / 19×19. 중국룰(덤 7.5) · 한국룰(덤 6.5) 계가.</span>
+    </a>
+    <a class="card" href="omok/index.html">
+      <span class="icon">⚪</span>
+      <span class="name">오목 <em>Omok</em></span>
+      <span class="desc">15×15. 자유 · 렌주 금수 · 스왑2(국제 공식) 룰. AI 대전(3단계).</span>
+    </a>
+    <a class="card" href="chess/index.html">
+      <span class="icon">♞</span>
+      <span class="name">체스 <em>Chess</em></span>
+      <span class="desc">캐슬링 · 앙파상 · 승격 등 완전 규칙. AI 대전(3단계).</span>
+    </a>
+    <a class="card" href="janggi/index.html">
+      <span class="icon">🀄</span>
+      <span class="name">장기 <em>Janggi</em></span>
+      <span class="desc">초·한 대국. 마상 차림, 궁성 대각선, 포 규칙 완전 구현. AI 대전(3단계).</span>
+    </a>
+    <a class="card" href="checkers/index.html">
+      <span class="icon">🔴</span>
+      <span class="name">체커 <em>Checkers</em></span>
+      <span class="desc">8×8 영국식 드래프츠. 강제 잡기 · 연속 점프 · 킹 승격. AI 대전(3단계).</span>
+    </a>
+    <a class="card" href="yut/index.html">
+      <span class="icon">🪵</span>
+      <span class="name">윷놀이 <em>Yut</em></span>
+      <span class="desc">전통 윷판 29지점 · 지름길 · 업기 · 잡기 · 빽도. 2~4인 사람/AI 혼합.</span>
+    </a>
+    <a class="card" href="holdem/index.html">
+      <span class="icon">🃏</span>
+      <span class="name">홀덤 <em>Hold'em</em></span>
+      <span class="desc">텍사스 홀덤 토너먼트. AI 1~5명과 대전, 사이드팟·정식 룰 완전 구현.</span>
+    </a>
+    <a class="card" href="matgo/index.html">
+      <span class="icon">🎴</span>
+      <span class="name">맞고 <em>Go-Stop</em></span>
+      <span class="desc">2인 고스톱. 뻑·따닥·쪽·폭탄·흔들기·고/스톱·피박/광박/멍박 규칙. AI·핫시트.</span>
+    </a>
+    <a class="card" href="yacht/index.html">
+      <span class="icon">🎲</span>
+      <span class="name">요트다이스 <em>Yacht Dice</em></span>
+      <span class="desc">주사위 5개 × 12라운드 족보 게임. 1~4인 사람/AI 혼합, 솔로 최고 기록 도전.</span>
+    </a>
+  </div>
+
+  <footer>모든 게임은 단일 HTML 파일 — 브라우저에서 바로 실행됩니다</footer>
+</body>
+</html>

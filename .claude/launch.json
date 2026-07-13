@@ -1,0 +1,35 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "baduk",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8742", "--directory", "/Users/jihunyoon/Desktop/야구/baduk"],
+      "port": 8742
+    },
+    {
+      "name": "games",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8800", "--directory", "/Users/jihunyoon/Desktop/야구"],
+      "port": 8800
+    },
+    {
+      "name": "online",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["/Users/jihunyoon/Desktop/야구/server.py", "8890"],
+      "port": 8890
+    },
+    {
+      "name": "set",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8932", "--directory", "/Users/jihunyoon/Desktop/야구"],
+      "port": 8932
+    },
+    {
+      "name": "arcade",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["/Users/jihunyoon/Desktop/야구/games_server.py", "8891"],
+      "port": 8891
+    }
+  ]
+}

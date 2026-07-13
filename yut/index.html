@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>윷놀이</title>
+<style>
+  :root {
+    --bg: #1a1d24;
+    --panel: #242832;
+    --text: #e8e6e0;
+    --muted: #9a9788;
+    --accent: #d4a24e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Apple SD Gothic Neo", "Pretendard", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px 16px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  #status {
+    margin: 14px 0 4px;
+    font-size: 16px;
+    font-weight: 600;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+  }
+  #notice {
+    min-height: 20px;
+    font-size: 13px;
+    color: var(--accent);
+    margin-bottom: 4px;
+    text-align: center;
+    max-width: 560px;
+  }
+  .turn-dot {
+    width: 16px; height: 16px; border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 1px 3px rgba(0,0,0,.5);
+    flex-shrink: 0;
+  }
+  #throwRow {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin: 8px 0 4px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  #sticks { display: flex; gap: 7px; }
+  .stick {
+    width: 26px; height: 88px;
+    border-radius: 13px;
+    border: 1px solid rgba(0,0,0,.55);
+    position: relative;
+    box-shadow: 0 3px 8px rgba(0,0,0,.4);
+    transition: transform .08s;
+  }
+  .stick.flat { background: linear-gradient(105deg, #efe0bd, #d9c395); }
+  .stick.round { background: linear-gradient(90deg, #9c6d3c, #714a22 55%, #8a5f33); }
+  .stick.round::after {
+    content: '✕\A✕\A✕';
+    white-space: pre;
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    line-height: 2; font-size: 11px; color: rgba(30,15,0,.55);
+  }
+  .stick.flat.bd::before {
+    content: '';
+    position: absolute; top: 9px; left: 50%; transform: translateX(-50%);
+    width: 9px; height: 9px; border-radius: 50%; background: #c0392b;
+  }
+  #throwResult {
+    font-size: 30px; font-weight: 800; color: var(--accent);
+    min-width: 76px; text-align: center;
+  }
+  #pendingRow {
+    display: flex; align-items: center; gap: 8px;
+    margin: 6px 0 10px; flex-wrap: wrap; justify-content: center;
+    min-height: 38px;
+  }
+  .plabel { color: var(--muted); font-size: 12px; }
+  .chip {
+    background: var(--panel);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 14px;
+    color: var(--text);
+    cursor: pointer;
+    font-family: inherit;
+    touch-action: manipulation;
+  }
+  .chip em { font-style: normal; color: var(--muted); font-size: 11px; margin-left: 2px; }
+  .chip.sel { border-color: var(--accent); background: #35301f; color: var(--accent); font-weight: 700; }
+  .chip:disabled { opacity: .35; cursor: default; }
+  canvas {
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.45);
+    cursor: pointer;
+    touch-action: manipulation;
+    max-width: 100%;
+    height: auto;      /* 모바일: max-width 축소 시 가로세로 비율 유지 */
+    display: block;
+  }
+  #players { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; justify-content: center; }
+  .pl {
+    background: var(--panel);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    min-width: 150px;
+  }
+  .pl.active { border-color: var(--accent); box-shadow: 0 0 8px rgba(212,162,78,.25); }
+  .pl-top { display: flex; align-items: center; gap: 6px; }
+  .pl-kind { color: var(--muted); font-size: 11px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; box-shadow: 0 1px 2px rgba(0,0,0,.5); }
+  .pl-mid { margin-top: 4px; color: var(--muted); }
+  .pl-mid b { color: var(--text); }
+  .wchips { letter-spacing: 2px; }
+  .wchips.go { cursor: pointer; border-bottom: 1px dashed var(--accent); animation: pulse .9s infinite alternate; }
+  .wchips.selsrc { border-bottom: 2px solid var(--accent); }
+  @keyframes pulse { from { opacity: .55; } to { opacity: 1; } }
+  .controls { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; justify-content: center; align-items: center; }
+  button {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background .15s;
+  }
+  button:hover { background: #2f3442; }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent); color: #1a1d24; border-color: var(--accent); font-weight: 700; }
+  button.primary:hover:not(:disabled) { background: #e0b160; }
+  select {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 10px; max-width: 560px; text-align: center; line-height: 1.6; }
+  a.home { color: var(--muted); font-size: 12px; margin-top: 16px; text-decoration: none; }
+  a.home:hover { color: var(--accent); }
+  #overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,17,22,.97);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    text-align: center;
+    padding: 24px;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 22px; margin-bottom: 12px; }
+  #overlay p { color: var(--muted); font-size: 15px; line-height: 1.7; max-width: 440px; white-space: pre-line; }
+  #overlayBtns { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; min-width: 280px; }
+  @media (max-width: 600px) {
+    body { padding: 12px 8px; }
+    h1 { font-size: 18px; }
+    .sub { font-size: 12px; }
+    #status { font-size: 14px; }
+    #notice { font-size: 12px; }
+    .stick { width: 20px; height: 66px; border-radius: 10px; }
+    .stick.round::after { font-size: 9px; line-height: 1.9; }
+    #throwResult { font-size: 24px; min-width: 58px; }
+    .controls { gap: 6px; }
+    button, select { padding: 8px 12px; font-size: 13px; }
+    .chip { padding: 6px 10px; font-size: 13px; }
+    .pl { min-width: 132px; padding: 6px 10px; font-size: 12px; }
+    .hint { font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+  <h1>윷놀이 <span>Yut</span></h1>
+  <div class="sub">전통 윷판 29지점 · 2~4인 사람/AI · 지름길 · 업기 · 잡기 · 빽도</div>
+
+  <div id="status"></div>
+  <div id="notice"></div>
+
+  <div id="throwRow">
+    <div id="sticks">
+      <div class="stick flat" id="st0"></div>
+      <div class="stick flat" id="st1"></div>
+      <div class="stick flat" id="st2"></div>
+      <div class="stick flat" id="st3"></div>
+    </div>
+    <div id="throwResult"></div>
+    <button id="throwBtn" class="primary">🎲 윷 던지기</button>
+  </div>
+
+  <div id="pendingRow">
+    <span class="plabel">남은 결과</span>
+    <div id="pending" style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center"></div>
+  </div>
+
+  <canvas id="board"></canvas>
+
+  <div id="players"></div>
+
+  <div class="controls">
+    <select id="seat0" title="새 게임부터 적용">
+      <option value="human" selected>좌석1: 사람</option>
+      <option value="ai">좌석1: AI</option>
+    </select>
+    <select id="seat1" title="새 게임부터 적용">
+      <option value="human">좌석2: 사람</option>
+      <option value="ai" selected>좌석2: AI</option>
+    </select>
+    <select id="seat2" title="새 게임부터 적용">
+      <option value="none" selected>좌석3: 없음</option>
+      <option value="human">좌석3: 사람</option>
+      <option value="ai">좌석3: AI</option>
+    </select>
+    <select id="seat3" title="새 게임부터 적용">
+      <option value="none" selected>좌석4: 없음</option>
+      <option value="human">좌석4: 사람</option>
+      <option value="ai">좌석4: AI</option>
+    </select>
+    <select id="backdoSel" title="새 게임부터 적용">
+      <option value="on" selected>빽도 켬</option>
+      <option value="off">빽도 끔</option>
+    </select>
+    <button id="newBtn">새 게임</button>
+  </div>
+
+  <div class="hint">
+    윷(4)·모(5)가 나오면 한 번 더 던지고, 모인 결과는 원하는 순서로 사용합니다.
+    상대 말을 잡으면 한 번 더 던지고, 내 말과 겹치면 업어서 함께 이동합니다.
+    모서리(첫 모·뒷모)나 중앙 방에 <b>정확히 멈추면</b> 다음 이동에서 지름길을 탈 수 있습니다.
+    빽도(빨간 점 가락만 배)는 뒤로 1칸 — 판에 말이 없으면 그 결과는 무효입니다.
+    출발점을 지나면 완주, 말 4개를 먼저 완주시키면 승리!
+  </div>
+  <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <div id="overlay">
+    <h2 id="overlayTitle"></h2>
+    <p id="overlayDesc"></p>
+    <div id="overlayBtns"></div>
+  </div>
+
+<script>
+// ==================== 게임 코어 (순수 로직 — 테스트에서 추출해 검증) ====================
+/* __YUT_CORE_START__ */
+function yutCoreModule() {
+  'use strict';
+  var FINISH = 99, START = -1;
+
+  // ---- 경로 그래프 ----
+  // 외곽 0~19 (0=출발/도착, 반시계 진행: 0→1→…→19→0→완주)
+  // 지름길 A: 5(첫 모)→20→21→22(중앙)→23→24→15
+  // 지름길 B: 10(뒷모)→25→26→22(중앙)→27→28→0
+  // 분기(그 지점에 '멈춘' 경우에만): 5, 10, 22
+  // 중앙을 지나칠 때는 진행 방향 유지: 21→22→23, 26→22→27
+  function stepNext(cur, prev, first, route) {
+    if (cur === START) return 1;
+    if (cur === 0) return FINISH;                              // 출발점을 지나면 완주
+    if (cur === 5) return (first && route === 'S') ? 20 : 6;
+    if (cur === 10) return (first && route === 'S') ? 25 : 11;
+    if (cur === 22) return first ? (route === 'S' ? 27 : 23) : (prev === 26 ? 27 : 23);
+    if (cur === 19) return 0;
+    if (cur === 20) return 21;
+    if (cur === 21) return 22;
+    if (cur === 23) return 24;
+    if (cur === 24) return 15;
+    if (cur === 25) return 26;
+    if (cur === 26) return 22;
+    if (cur === 27) return 28;
+    if (cur === 28) return 0;
+    return cur + 1;                                            // 나머지 외곽
+  }
+
+  // steps(≥1)칸 전진. route: 'S'=지름길, 'O'=바깥/직진 (출발 지점이 분기일 때만 유효)
+  // 반환 { dest, path } — path는 지나간 지점 목록(도착 지점 포함, 완주는 미포함)
+  function computeDest(pos, steps, route) {
+    var cur = pos, prev = null, path = [], s, nxt;
+    for (s = 0; s < steps; s++) {
+      nxt = stepNext(cur, prev, s === 0, route || 'O');
+      prev = cur; cur = nxt;
+      if (cur === FINISH) break;
+      path.push(cur);
+    }
+    return { dest: cur, path: path };
+  }
+
+  function routesFrom(pos) {
+    return (pos === 5 || pos === 10 || pos === 22) ? ['S', 'O'] : ['O'];
+  }
+
+  // ---- 남은 최단 거리 (지름길 낙관 가정) — AI 진행도 평가용 ----
+  var REM = (function () {
+    var r = {}, i;
+    for (i = 1; i <= 19; i++) r[i] = 21 - i;
+    r[0] = 1;
+    r[28] = 2; r[27] = 3; r[22] = 4; r[21] = 5; r[20] = 6;
+    r[5] = 7; r[10] = 7;
+    r[24] = 1 + r[15]; r[23] = 2 + r[15];
+    r[26] = 5; r[25] = 6;
+    r[FINISH] = 0;
+    return r;
+  })();
+
+  // 윷 확률(빽도 켬 기준): 도 3/16, 개 6/16, 걸 4/16, 윷 1/16, 모 1/16, 빽도 1/16
+  var PROB = { '-1': 1 / 16, 1: 3 / 16, 2: 6 / 16, 3: 4 / 16, 4: 1 / 16, 5: 1 / 16 };
+  var NAMES = { '-1': '빽도', 1: '도', 2: '개', 3: '걸', 4: '윷', 5: '모' };
+
+  function newState(nPlayers, backdo) {
+    var w = [], f = [], i;
+    for (i = 0; i < nPlayers; i++) { w.push(4); f.push(0); }
+    return {
+      n: nPlayers, backdo: !!backdo,
+      turn: 0, phase: 'throw', throwsLeft: 1,
+      pending: [],           // 아직 사용하지 않은 던지기 결과들
+      groups: [],            // { id, owner, pos, pieces, trail } — trail 마지막 = 현재 위치
+      waiting: w, finished: f,
+      winner: -1, gid: 1, discarded: null,
+    };
+  }
+
+  // 윷가락 4개 — true=배(평평한 면이 위). 배가 1개일 때 그것이 0번(빽도 가락)이면 빽도.
+  function throwSticks(backdo, rng) {
+    rng = rng || Math.random;
+    var sticks = [rng() < 0.5, rng() < 0.5, rng() < 0.5, rng() < 0.5];
+    var flats = 0, i;
+    for (i = 0; i < 4; i++) if (sticks[i]) flats++;
+    var value;
+    if (flats === 0) value = 5;                                   // 모
+    else if (flats === 1 && backdo && sticks[0]) value = -1;      // 빽도 (도의 1/4)
+    else value = flats;                                           // 도/개/걸/윷
+    return { value: value, sticks: sticks };
+  }
+
+  function doThrow(state, rng) {
+    var t = throwSticks(state.backdo, rng);
+    state.throwsLeft--;
+    if (t.value === 4 || t.value === 5) state.throwsLeft++;       // 윷·모 → 한 번 더
+    state.pending.push(t.value);
+    updatePhase(state);
+    return t;
+  }
+
+  function playerGroups(state, p) {
+    return state.groups.filter(function (g) { return g.owner === p; });
+  }
+  function findGroup(state, gid) {
+    for (var i = 0; i < state.groups.length; i++) if (state.groups[i].id === gid) return state.groups[i];
+    return null;
+  }
+
+  // 빽도 목적지: 지나온 경로(trail)를 한 칸 되짚음. 입장 직후(trail 1칸)면 출발점(0)으로.
+  // 출발점(0)에서 되짚을 경로가 없으면 더 물러날 수 없음(null).
+  function backDest(g) {
+    if (g.trail.length >= 2) return g.trail[g.trail.length - 2];
+    if (g.trail.length === 1 && g.trail[0] !== 0) return 0;
+    return null;
+  }
+
+  function legalMoves(state, value) {
+    var p = state.turn, out = [], gs = playerGroups(state, p);
+    if (value === -1) {                                           // 빽도: 판 위의 말만
+      gs.forEach(function (g) {
+        var d = backDest(g);
+        if (d !== null) out.push({ kind: 'back', gid: g.id, dest: d, path: [d], value: value });
+      });
+      return out;
+    }
+    if (state.waiting[p] > 0) {                                   // 새 말 입장
+      var r = computeDest(START, value, 'O');
+      out.push({ kind: 'enter', dest: r.dest, path: r.path, value: value });
+    }
+    gs.forEach(function (g) {                                     // 판 위 말 이동 (분기별)
+      var seen = {};
+      routesFrom(g.pos).forEach(function (route) {
+        var r = computeDest(g.pos, value, route);
+        if (seen[r.dest]) return;
+        seen[r.dest] = 1;
+        out.push({ kind: 'move', gid: g.id, route: route, dest: r.dest, path: r.path, value: value });
+      });
+    });
+    return out;
+  }
+
+  function updatePhase(state) {
+    state.discarded = null;
+    if (state.winner >= 0) { state.phase = 'end'; return; }
+    if (state.throwsLeft > 0) { state.phase = 'throw'; return; }
+    if (state.pending.length > 0) {
+      var usable = state.pending.some(function (v) { return legalMoves(state, v).length > 0; });
+      if (usable) { state.phase = 'move'; return; }
+      state.discarded = state.pending.slice();   // 전부 사용 불가(예: 빽도인데 판에 말 없음) → 버림
+      state.pending = [];
+    }
+    state.turn = (state.turn + 1) % state.n;
+    state.throwsLeft = 1;
+    state.phase = 'throw';
+  }
+
+  // mv: legalMoves가 반환한 형식. 반환 { ok, captured, stacked, finished, pieces }
+  function applyMove(state, mv) {
+    var p = state.turn;
+    var pi = state.pending.indexOf(mv.value);
+    if (pi < 0) return { ok: false };
+    var g, stacked = false, captured = false;
+    if (mv.kind === 'enter') {
+      if (state.waiting[p] <= 0 || mv.value < 1) return { ok: false };
+      g = { id: state.gid++, owner: p, pos: START, pieces: 1, trail: [] };
+    } else {
+      g = findGroup(state, mv.gid);
+      if (!g || g.owner !== p) return { ok: false };
+    }
+    if (mv.kind === 'back') {
+      if (mv.value !== -1 || backDest(g) === null) return { ok: false };
+      state.pending.splice(pi, 1);
+      g.trail.pop();
+      if (g.trail.length === 0) g.trail = [0];
+      g.pos = g.trail[g.trail.length - 1];
+    } else {
+      if (mv.value < 1) return { ok: false };
+      var r = computeDest(g.pos, mv.value, mv.route || 'O');
+      state.pending.splice(pi, 1);
+      if (mv.kind === 'enter') { state.waiting[p]--; state.groups.push(g); }
+      if (r.dest === FINISH) {                                    // 완주 (업힌 말 통째)
+        var fn = g.pieces;
+        state.finished[p] += fn;
+        state.groups = state.groups.filter(function (x) { return x.id !== g.id; });
+        if (state.finished[p] >= 4) {
+          state.winner = p; state.phase = 'end';
+          return { ok: true, finished: fn, captured: false, stacked: false, pieces: 0 };
+        }
+        updatePhase(state);
+        return { ok: true, finished: fn, captured: false, stacked: false, pieces: 0 };
+      }
+      g.pos = r.dest;
+      g.trail = g.trail.concat(r.path);
+    }
+    // 도착 지점 처리: 내 말 = 업기, 상대 말 = 잡기(대기로 복귀 + 한 번 더)
+    var others = state.groups.filter(function (x) { return x.id !== g.id && x.pos === g.pos; });
+    if (others.length) {
+      var ids = {};
+      others.forEach(function (o) {
+        ids[o.id] = 1;
+        if (o.owner === p) { g.pieces += o.pieces; stacked = true; }
+        else { state.waiting[o.owner] += o.pieces; captured = true; }
+      });
+      state.groups = state.groups.filter(function (x) { return !ids[x.id]; });
+    }
+    if (captured) state.throwsLeft++;                             // 잡으면 한 번 더
+    updatePhase(state);
+    return { ok: true, captured: captured, stacked: stacked, finished: 0, pieces: g.pieces };
+  }
+
+  // ---- AI (간단 휴리스틱): 잡기 > 완주 > 업기 > 진행/지름길, 위험 지점 회피 ----
+  function dangerAt(state, p, node, backdoOn) {
+    if (node === FINISH || node === START) return 0;
+    var danger = 0;
+    state.groups.forEach(function (o) {
+      if (o.owner === p) return;
+      var routes = routesFrom(o.pos), v, i;
+      for (v = 1; v <= 5; v++) {
+        for (i = 0; i < routes.length; i++) {
+          if (computeDest(o.pos, v, routes[i]).dest === node) { danger += PROB[v]; break; }
+        }
+      }
+      if (backdoOn && backDest(o) === node) danger += PROB['-1'];
+    });
+    if (node >= 1 && node <= 5) {                                 // 상대 대기 말의 입장 잡기
+      for (var q = 0; q < state.n; q++) {
+        if (q !== p && state.waiting[q] > 0) { danger += PROB[node]; break; }
+      }
+    }
+    return Math.min(danger, 1);
+  }
+
+  function scoreMove(state, mv) {
+    var p = state.turn, sc = 0, movingPieces = 1, fromPos = START;
+    if (mv.kind !== 'enter') {
+      var g = findGroup(state, mv.gid);
+      movingPieces = g.pieces;
+      fromPos = g.pos;
+    }
+    var fromRem = (fromPos === START) ? 21 : REM[fromPos];
+    if (mv.dest === FINISH) {
+      sc += 900 + 90 * movingPieces;                              // 완주
+    } else {
+      sc += (fromRem - REM[mv.dest]) * 14;                        // 진행도(지름길 반영)
+      var occ = null, i;
+      for (i = 0; i < state.groups.length; i++) {
+        var o = state.groups[i];
+        if (o.pos === mv.dest && !(mv.kind !== 'enter' && o.id === mv.gid)) { occ = o; break; }
+      }
+      if (occ) {
+        if (occ.owner !== p) sc += 1000 + 120 * occ.pieces;       // 잡기 최우선 (+한 번 더)
+        else sc += 260 + 45 * occ.pieces;                         // 업기
+      }
+      if (mv.dest === 5 || mv.dest === 10 || mv.dest === 22) sc += 25;   // 분기점 선점
+      if (mv.dest === 0) sc += 40;                                // 참먹이(어떤 결과로도 완주)
+      var atRisk = movingPieces + (occ && occ.owner === p ? occ.pieces : 0);
+      sc -= dangerAt(state, p, mv.dest, state.backdo) * (55 + 65 * atRisk);
+    }
+    return sc;
+  }
+
+  function aiChooseMove(state) {
+    var best = null, bestSc = -Infinity, seen = {}, i, j;
+    for (i = 0; i < state.pending.length; i++) {
+      var v = state.pending[i];
+      if (seen[v]) continue;
+      seen[v] = 1;
+      var mvs = legalMoves(state, v);
+      for (j = 0; j < mvs.length; j++) {
+        var sc = scoreMove(state, mvs[j]) + Math.random() * 0.01;
+        if (sc > bestSc) { bestSc = sc; best = mvs[j]; }
+      }
+    }
+    return best;
+  }
+
+  return {
+    FINISH: FINISH, START: START, NAMES: NAMES, PROB: PROB, REM: REM,
+    stepNext: stepNext, computeDest: computeDest, routesFrom: routesFrom,
+    newState: newState, throwSticks: throwSticks, doThrow: doThrow,
+    legalMoves: legalMoves, applyMove: applyMove, backDest: backDest,
+    updatePhase: updatePhase, findGroup: findGroup, playerGroups: playerGroups,
+    dangerAt: dangerAt, scoreMove: scoreMove, aiChooseMove: aiChooseMove,
+  };
+}
+/* __YUT_CORE_END__ */
+
+// ==================== UI ====================
+const core = yutCoreModule();
+const FINISH = core.FINISH;
+const NAMES = core.NAMES;
+const PCOLORS = ['#e05555', '#4fc3f7', '#6ecb63', '#d4a24e'];
+const PNAMES = ['빨강', '파랑', '초록', '노랑'];
+
+let state = null;
+let players = [];          // 'human' | 'ai' (플레이어 인덱스 순)
+let gameToken = 0;
+let selIdx = null;         // 선택된 pending 인덱스
+let uiSource = null;       // {kind:'enter'} | {kind:'group', gid}
+let animating = false;
+let lastDest = -1;
+let uiThrowCount = 0;      // 이번 차례 던진 횟수 (버튼 라벨용)
+let prevTurn = -1;
+let actions = 0;           // 이번 게임 액션 수 (설정 변경 안내용)
+
+// ---- 보드 렌더링 ----
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+const SIZE = 560, M = 64;
+const dpr = window.devicePixelRatio || 1;
+canvas.width = SIZE * dpr;
+canvas.height = SIZE * dpr;
+canvas.style.width = SIZE + 'px';
+// height는 CSS의 height:auto가 비율 유지
+ctx.scale(dpr, dpr);
+
+const NODE = (() => {
+  const P = [], L = M, R = SIZE - M, T = M, B = SIZE - M, st = (R - L) / 5, C = SIZE / 2;
+  P[0] = [R, B];
+  for (let k = 1; k <= 4; k++) P[k] = [R, B - st * k];
+  P[5] = [R, T];
+  for (let k = 1; k <= 4; k++) P[5 + k] = [R - st * k, T];
+  P[10] = [L, T];
+  for (let k = 1; k <= 4; k++) P[10 + k] = [L, T + st * k];
+  P[15] = [L, B];
+  for (let k = 1; k <= 4; k++) P[15 + k] = [L + st * k, B];
+  const lp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  const c = [C, C];
+  P[20] = lp(P[5], c, 1 / 3); P[21] = lp(P[5], c, 2 / 3);
+  P[22] = c;
+  P[23] = lp(c, P[15], 1 / 3); P[24] = lp(c, P[15], 2 / 3);
+  P[25] = lp(P[10], c, 1 / 3); P[26] = lp(P[10], c, 2 / 3);
+  P[27] = lp(c, P[0], 1 / 3); P[28] = lp(c, P[0], 2 / 3);
+  return P;
+})();
+const FIN_POS = [SIZE - 27, SIZE - 27];
+const BIG = { 0: 1, 5: 1, 10: 1, 15: 1, 22: 1 };
+
+function hexA(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+function humanCanMove() {
+  return !!state && state.phase === 'move' && players[state.turn] === 'human' && !animating;
+}
+
+function currentMoves() {
+  if (!state || selIdx == null || selIdx >= state.pending.length) return [];
+  return core.legalMoves(state, state.pending[selIdx]);
+}
+
+function sourcesOf(mvs) {
+  const out = [], seen = {};
+  mvs.forEach(m => {
+    const key = m.kind === 'enter' ? 'enter' : 'g' + m.gid;
+    if (seen[key]) return;
+    seen[key] = 1;
+    out.push(m.kind === 'enter' ? { kind: 'enter' } : { kind: 'group', gid: m.gid });
+  });
+  return out;
+}
+
+function candidates() {
+  if (!uiSource) return [];
+  return currentMoves().filter(m =>
+    uiSource.kind === 'enter' ? m.kind === 'enter' : (m.kind !== 'enter' && m.gid === uiSource.gid));
+}
+
+function destLabel(mv, cands) {
+  if (mv.dest === FINISH) return '완주!';
+  if (mv.kind === 'back') return '빽도';
+  if (mv.kind === 'enter') return '입장';
+  if (cands.length > 1) {
+    const g = core.findGroup(state, mv.gid);
+    if (g && (g.pos === 5 || g.pos === 10)) return mv.route === 'S' ? '지름길' : '바깥길';
+    if (g && g.pos === 22) return mv.route === 'S' ? '지름길' : '직진';
+  }
+  return null;
+}
+
+function ring(x, y, r, color, dashed, w) {
+  ctx.save();
+  if (dashed) ctx.setLineDash([6, 5]);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = w || 2;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function outlineText(txt, x, y) {
+  ctx.font = 'bold 12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'rgba(20,10,0,.85)';
+  ctx.lineWidth = 3;
+  ctx.strokeText(txt, x, y);
+  ctx.fillStyle = '#fff';
+  ctx.fillText(txt, x, y);
+}
+
+function drawPiece(x, y, color, count) {
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,.45)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 2;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x, y, 16, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  const g2 = ctx.createRadialGradient(x - 5, y - 6, 2, x, y, 16);
+  g2.addColorStop(0, 'rgba(255,255,255,.5)');
+  g2.addColorStop(.35, 'rgba(255,255,255,.12)');
+  g2.addColorStop(1, 'rgba(0,0,0,.28)');
+  ctx.fillStyle = g2;
+  ctx.beginPath();
+  ctx.arc(x, y, 16, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,.5)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(x, y, 16, 0, Math.PI * 2);
+  ctx.stroke();
+  if (count > 1) {
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'rgba(0,0,0,.7)';
+    ctx.lineWidth = 3;
+    ctx.strokeText(String(count), x, y + 0.5);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(String(count), x, y + 0.5);
+  }
+}
+
+function draw() {
+  const grad = ctx.createLinearGradient(0, 0, SIZE, SIZE);
+  grad.addColorStop(0, '#dcb35c');
+  grad.addColorStop(1, '#c99b45');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, SIZE, SIZE);
+
+  // 라인: 외곽 사각형 + 두 대각선
+  ctx.strokeStyle = 'rgba(50,30,8,.8)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(NODE[0][0], NODE[0][1]);
+  ctx.lineTo(NODE[5][0], NODE[5][1]);
+  ctx.lineTo(NODE[10][0], NODE[10][1]);
+  ctx.lineTo(NODE[15][0], NODE[15][1]);
+  ctx.closePath();
+  ctx.moveTo(NODE[5][0], NODE[5][1]);
+  ctx.lineTo(NODE[15][0], NODE[15][1]);
+  ctx.moveTo(NODE[10][0], NODE[10][1]);
+  ctx.lineTo(NODE[0][0], NODE[0][1]);
+  ctx.stroke();
+
+  // 29지점
+  for (let i = 0; i < 29; i++) {
+    const x = NODE[i][0], y = NODE[i][1], big = BIG[i];
+    ctx.beginPath();
+    ctx.arc(x, y, big ? 13 : 8, 0, Math.PI * 2);
+    ctx.fillStyle = '#e9d5a4';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(50,30,8,.85)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    if (big) {
+      ctx.beginPath();
+      ctx.arc(x, y, 18, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // 출발 라벨 + 진행 방향
+  ctx.fillStyle = 'rgba(50,30,8,.9)';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('출발·도착', NODE[0][0] - 56, NODE[0][1] + 26);
+  ctx.fillText('↑', NODE[0][0] + 22, NODE[0][1] - 44);
+
+  const showSel = humanCanMove();
+  const mvs = showSel ? currentMoves() : [];
+  const cands = showSel && uiSource ? candidates() : [];
+  const pc = state ? PCOLORS[state.turn] : '#fff';
+
+  // 경로 미리보기
+  cands.forEach(mv => {
+    const pp = mv.dest === FINISH ? mv.path : mv.path.slice(0, -1);
+    ctx.fillStyle = hexA(pc, .55);
+    pp.forEach(n => {
+      ctx.beginPath();
+      ctx.arc(NODE[n][0], NODE[n][1], 4.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  });
+
+  // 말
+  if (state) {
+    state.groups.forEach(g => drawPiece(NODE[g.pos][0], NODE[g.pos][1], PCOLORS[g.owner], g.pieces));
+    if (lastDest >= 0 && state.groups.some(g => g.pos === lastDest)) {
+      ring(NODE[lastDest][0], NODE[lastDest][1], 21, 'rgba(255,255,255,.75)', false, 2);
+    }
+  }
+
+  // 이동 가능한 말 하이라이트
+  if (showSel) {
+    const gids = {};
+    mvs.forEach(m => { if (m.kind !== 'enter') gids[m.gid] = 1; });
+    state.groups.forEach(g => {
+      if (!gids[g.id]) return;
+      const sel = uiSource && uiSource.kind === 'group' && uiSource.gid === g.id;
+      ring(NODE[g.pos][0], NODE[g.pos][1], 22, '#ffd77a', !sel, sel ? 3 : 2);
+    });
+  }
+
+  // 목적지 마커 (분기 선택 UI)
+  cands.forEach(mv => {
+    const p2 = mv.dest === FINISH ? FIN_POS : NODE[mv.dest];
+    ctx.fillStyle = hexA(pc, .28);
+    ctx.beginPath();
+    ctx.arc(p2[0], p2[1], 19, 0, Math.PI * 2);
+    ctx.fill();
+    ring(p2[0], p2[1], 19, pc, true, 2.5);
+    const label = destLabel(mv, cands);
+    if (label) outlineText(label, p2[0], p2[1] - 30);
+  });
+}
+
+// ---- 클릭 처리 ----
+function evtXY(e) {
+  const rect = canvas.getBoundingClientRect();
+  return [(e.clientX - rect.left) * (SIZE / rect.width), (e.clientY - rect.top) * (SIZE / rect.height)];
+}
+function nearestNode(x, y, maxD) {
+  let best = -1, bd = maxD * maxD;
+  for (let i = 0; i < 29; i++) {
+    const dx = x - NODE[i][0], dy = y - NODE[i][1], d = dx * dx + dy * dy;
+    if (d < bd) { bd = d; best = i; }
+  }
+  return best;
+}
+
+canvas.addEventListener('click', e => {
+  if (!humanCanMove()) return;
+  const xy = evtXY(e), x = xy[0], y = xy[1];
+  const cands = uiSource ? candidates() : [];
+  for (const mv of cands) {
+    const p2 = mv.dest === FINISH ? FIN_POS : NODE[mv.dest];
+    if ((x - p2[0]) ** 2 + (y - p2[1]) ** 2 < 24 * 24) { doApply(mv); return; }
+  }
+  const node = nearestNode(x, y, 26);
+  if (node >= 0) {
+    const g = state.groups.find(gr => gr.pos === node && gr.owner === state.turn);
+    if (g && currentMoves().some(m => m.kind !== 'enter' && m.gid === g.id)) {
+      uiSource = { kind: 'group', gid: g.id };
+      updateAll();
+      return;
+    }
+  }
+  if (uiSource) { uiSource = null; updateAll(); }
+});
+
+// ---- 윷가락 애니메이션 ----
+function setFace(el, flat, rot) {
+  el.classList.toggle('flat', flat);
+  el.classList.toggle('round', !flat);
+  el.style.transform = `rotate(${rot}deg)`;
+}
+function resetSticks() {
+  for (let i = 0; i < 4; i++) setFace(document.getElementById('st' + i), true, 0);
+}
+function animateSticks(res, cb) {
+  animating = true;
+  updateAll();
+  const t = gameToken;
+  const els = [0, 1, 2, 3].map(i => document.getElementById('st' + i));
+  document.getElementById('throwResult').textContent = '…';
+  let n = 0;
+  const iv = setInterval(() => {
+    if (t !== gameToken) { clearInterval(iv); return; }
+    n++;
+    els.forEach(el => setFace(el, Math.random() < 0.5, (Math.random() - 0.5) * 24));
+    if (n >= 8) {
+      clearInterval(iv);
+      res.sticks.forEach((f, i) => setFace(els[i], f, (Math.random() - 0.5) * 7));
+      document.getElementById('throwResult').textContent = NAMES[res.value] + '!';
+      setTimeout(() => {
+        if (t !== gameToken) return;
+        animating = false;
+        cb();
+      }, 420);
+    }
+  }, 75);
+}
+
+// ---- 진행 ----
+function setNotice(msg) { document.getElementById('notice').textContent = msg || ''; }
+
+function newGame() {
+  gameToken++;
+  const cfg = ['seat0', 'seat1', 'seat2', 'seat3'].map(id => document.getElementById(id).value);
+  players = cfg.filter(v => v !== 'none');
+  const backdo = document.getElementById('backdoSel').value === 'on';
+  state = core.newState(players.length, backdo);
+  selIdx = null; uiSource = null; animating = false; lastDest = -1;
+  uiThrowCount = 0; prevTurn = 0; actions = 0;
+  document.getElementById('st0').classList.toggle('bd', backdo);
+  resetSticks();
+  document.getElementById('throwResult').textContent = '';
+  hideOverlay();
+  setNotice(backdo ? '' : '빽도 없이 진행합니다.');
+  pump();
+}
+
+function pump() {
+  if (!state) return;
+  if (state.turn !== prevTurn) { prevTurn = state.turn; uiThrowCount = 0; }
+  updateAll();
+  if (state.phase === 'end') { onEnd(); return; }
+  const t = gameToken;
+  if (players[state.turn] === 'ai') {
+    if (state.phase === 'throw') {
+      setTimeout(() => { if (t === gameToken) uiThrow(); }, 500);
+    } else {
+      setTimeout(() => {
+        if (t !== gameToken) return;
+        const mv = core.aiChooseMove(state);
+        if (mv) { doApply(mv); }
+        else { state.pending = []; core.updatePhase(state); pump(); }   // 안전망
+      }, 600);
+    }
+  } else if (state.phase === 'move') {
+    ensureSelection();
+    updateAll();
+  }
+}
+
+function uiThrow() {
+  if (!state || state.phase !== 'throw' || animating) return;
+  uiThrowCount++;
+  actions++;
+  const res = core.doThrow(state, Math.random);
+  animateSticks(res, () => {
+    let msg = NAMES[res.value] + '!';
+    if (res.value === 4 || res.value === 5) msg += ' 한 번 더 던집니다.';
+    if (state.discarded) msg += ' 쓸 수 있는 말이 없어 결과를 버리고 차례를 넘깁니다.';
+    setNotice(msg);
+    pump();
+  });
+}
+
+function doApply(mv) {
+  actions++;
+  const victim = mv.dest !== FINISH
+    ? state.groups.find(g => g.pos === mv.dest && g.owner !== state.turn)
+    : null;
+  const res = core.applyMove(state, mv);
+  if (!res.ok) { pump(); return; }
+  lastDest = mv.dest === FINISH ? -1 : mv.dest;
+  const bits = [];
+  if (res.finished) bits.push(`🎉 말 ${res.finished}개 완주!`);
+  if (res.captured && victim) bits.push(`💥 ${PNAMES[victim.owner]} 말 ${victim.pieces}개를 잡았습니다 — 한 번 더 던집니다!`);
+  if (res.stacked) bits.push(`🐎 업었습니다 — ${res.pieces}개가 함께 이동합니다.`);
+  if (state.discarded) bits.push('남은 결과를 쓸 말이 없어 버립니다.');
+  if (bits.length) setNotice(bits.join(' '));
+  selIdx = null;
+  uiSource = null;
+  pump();
+}
+
+function ensureSelection() {
+  if (!state || state.phase !== 'move') return;
+  const usableAt = i => core.legalMoves(state, state.pending[i]).length > 0;
+  if (selIdx == null || selIdx >= state.pending.length || !usableAt(selIdx)) {
+    selIdx = null;
+    uiSource = null;
+    for (let i = 0; i < state.pending.length; i++) if (usableAt(i)) { selIdx = i; break; }
+  }
+  autoSource();
+}
+function autoSource() {
+  const srcs = sourcesOf(currentMoves());
+  if (uiSource) {
+    const ok = srcs.some(s => s.kind === uiSource.kind && (s.kind === 'enter' || s.gid === uiSource.gid));
+    if (!ok) uiSource = null;
+  }
+  if (!uiSource && srcs.length === 1) uiSource = srcs[0];
+}
+
+function onEnd() {
+  const w = state.winner;
+  const rows = [];
+  for (let p = 0; p < state.n; p++) rows.push(`${PNAMES[p]} ${state.finished[p]}/4`);
+  showOverlay(
+    `🏆 ${PNAMES[w]} 승리!`,
+    `${PNAMES[w]}(${players[w] === 'ai' ? 'AI' : '사람'})이(가) 말 4개를 모두 완주했습니다.\n\n${rows.join(' · ')}`,
+    [['새 게임', newGame], ['판 구경하기', hideOverlay]]
+  );
+}
+
+// ---- 화면 갱신 ----
+function renderStatus() {
+  const el = document.getElementById('status');
+  if (!state) return;
+  if (state.phase === 'end') {
+    el.innerHTML = `🏆 <b style="color:${PCOLORS[state.winner]}">${PNAMES[state.winner]}</b> 승리!`;
+    return;
+  }
+  const p = state.turn;
+  const dot = `<span class="turn-dot" style="background:${PCOLORS[p]}"></span>`;
+  const who = `${PNAMES[p]}${players[p] === 'ai' ? ' (AI)' : ''}`;
+  if (players[p] === 'ai') el.innerHTML = `${dot} 🤖 ${who} 차례…`;
+  else if (animating) el.innerHTML = `${dot} ${who} — 던지는 중…`;
+  else if (state.phase === 'throw') el.innerHTML = `${dot} ${who} — ${uiThrowCount > 0 ? '한 번 더 던지세요!' : '윷을 던지세요'}`;
+  else el.innerHTML = `${dot} ${who} — 결과를 골라 말을 옮기세요`;
+}
+
+function renderChips() {
+  const row = document.getElementById('pendingRow');
+  const wrap = document.getElementById('pending');
+  wrap.innerHTML = '';
+  if (!state || state.pending.length === 0) { row.style.visibility = 'hidden'; return; }
+  row.style.visibility = 'visible';
+  const canMove = humanCanMove();
+  state.pending.forEach((v, i) => {
+    const b = document.createElement('button');
+    const usable = core.legalMoves(state, v).length > 0;
+    b.className = 'chip' + (i === selIdx && canMove ? ' sel' : '');
+    b.disabled = !canMove || !usable;
+    b.innerHTML = `${NAMES[v]} <em>${v === -1 ? '↩1' : '+' + v}</em>`;
+    b.addEventListener('click', () => {
+      if (!humanCanMove()) return;
+      selIdx = i;
+      uiSource = null;
+      autoSource();
+      updateAll();
+    });
+    wrap.appendChild(b);
+  });
+}
+
+function renderPlayers() {
+  const wrap = document.getElementById('players');
+  if (!state) return;
+  wrap.innerHTML = '';
+  for (let p = 0; p < state.n; p++) {
+    const div = document.createElement('div');
+    div.className = 'pl' + (state.turn === p && state.phase !== 'end' ? ' active' : '');
+    const canEnter = humanCanMove() && p === state.turn && currentMoves().some(m => m.kind === 'enter');
+    const selE = canEnter && uiSource && uiSource.kind === 'enter';
+    const w = state.waiting[p];
+    div.innerHTML =
+      `<div class="pl-top"><span class="dot" style="background:${PCOLORS[p]}"></span><b>${PNAMES[p]}</b><span class="pl-kind">${players[p] === 'ai' ? 'AI' : '사람'}</span></div>` +
+      `<div class="pl-mid">대기 <span class="wchips${canEnter ? ' go' : ''}${selE ? ' selsrc' : ''}" style="color:${PCOLORS[p]}">${w > 0 ? '●'.repeat(w) : '－'}</span> · 완주 <b>${state.finished[p]}</b>/4</div>`;
+    wrap.appendChild(div);
+  }
+  wrap.querySelectorAll('.wchips.go').forEach(el => {
+    el.addEventListener('click', () => {
+      if (!humanCanMove()) return;
+      uiSource = { kind: 'enter' };
+      updateAll();
+    });
+  });
+}
+
+function updateButtons() {
+  const tb = document.getElementById('throwBtn');
+  tb.disabled = !(state && players[state.turn] === 'human' && state.phase === 'throw' && !animating);
+  tb.textContent = state && uiThrowCount > 0 && state.phase === 'throw' ? '🎲 한 번 더!' : '🎲 윷 던지기';
+}
+
+function updateAll() {
+  renderStatus();
+  renderChips();
+  renderPlayers();
+  updateButtons();
+  draw();
+}
+
+// ---- 오버레이 ----
+function showOverlay(title, desc, buttons) {
+  document.getElementById('overlayTitle').textContent = title;
+  document.getElementById('overlayDesc').textContent = desc;
+  const wrap = document.getElementById('overlayBtns');
+  wrap.innerHTML = '';
+  buttons.forEach(([label, cb], i) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    if (i === 0) b.className = 'primary';
+    b.addEventListener('click', cb);
+    wrap.appendChild(b);
+  });
+  document.getElementById('overlay').classList.add('show');
+}
+function hideOverlay() { document.getElementById('overlay').classList.remove('show'); }
+
+// ---- 설정 ----
+function onSettingChange() {
+  if (state && actions > 0 && state.phase !== 'end') {
+    setNotice('변경한 설정은 다음 "새 게임"부터 적용됩니다.');
+  } else {
+    newGame();
+  }
+}
+['seat0', 'seat1', 'seat2', 'seat3', 'backdoSel'].forEach(id =>
+  document.getElementById(id).addEventListener('change', onSettingChange));
+document.getElementById('newBtn').addEventListener('click', newGame);
+document.getElementById('throwBtn').addEventListener('click', uiThrow);
+
+newGame();
+</script>
+</body>
+</html>

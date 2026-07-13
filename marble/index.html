@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>별마블</title>
+<style>
+  :root {
+    --bg: #1a1d24;
+    --panel: #242832;
+    --text: #e8e6e0;
+    --muted: #9a9788;
+    --accent: #d4a24e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Apple SD Gothic Neo", "Pretendard", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px 16px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 4px; text-align: center; }
+  button {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background .15s;
+  }
+  button:hover { background: #2f3442; }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent); color: #1a1d24; border-color: var(--accent); font-weight: 700; }
+  button.primary:hover:not(:disabled) { background: #e0b160; }
+  select {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  /* ---- 보드 ---- */
+  #board {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    grid-template-rows: repeat(9, 1fr);
+    gap: 3px;
+    width: min(660px, 96vw);
+    aspect-ratio: 1;
+    margin-top: 14px;
+  }
+  .tile {
+    background: var(--panel);
+    border: 1px solid #3a3f4d;
+    border-radius: 6px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: hidden;
+    min-width: 0;
+    min-height: 0;
+  }
+  .tile.corner { background: #2c3140; border-color: #4a5062; }
+  .tile .strip { position: absolute; top: 0; left: 0; right: 0; height: 4px; }
+  .tile .tico { font-size: 15px; line-height: 1.2; margin-top: 5px; }
+  .tile .tname { font-size: 10.5px; font-weight: 700; margin-top: 7px; line-height: 1.15; text-align: center; word-break: keep-all; padding: 0 1px; }
+  .tile.corner .tname, .tile.special .tname { margin-top: 0; }
+  .tile .tsub { font-size: 9px; color: var(--muted); margin-top: 1px; }
+  .tile .stars { font-size: 9px; line-height: 1; color: #ffd54f; letter-spacing: -1px; min-height: 10px; margin-top: 1px; }
+  .tile .own { position: absolute; top: 6px; right: 4px; width: 8px; height: 8px; border-radius: 50%; display: none; box-shadow: 0 0 3px rgba(0,0,0,.6); }
+  .tile .tk { position: absolute; bottom: 2px; left: 1px; right: 1px; display: flex; gap: 2px; justify-content: center; flex-wrap: wrap; pointer-events: none; }
+  .token {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 1.5px solid rgba(0,0,0,.45);
+    box-shadow: 0 1px 3px rgba(0,0,0,.6);
+  }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.35); } }
+  .token.on { animation: pulse 1s ease-in-out infinite; }
+
+  #center {
+    grid-area: 2 / 2 / 9 / 9;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 8px;
+    text-align: center;
+  }
+  #turnLabel { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 7px; min-height: 22px; }
+  .tdot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; box-shadow: 0 1px 3px rgba(0,0,0,.5); }
+  #diceRow { display: flex; gap: 10px; }
+  .die { font-size: 48px; line-height: 1; color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,.5); }
+  #banner {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.65;
+    white-space: pre-line;
+    min-height: 58px;
+    max-width: 95%;
+  }
+  #banner .last { color: var(--accent); }
+
+  /* ---- 플레이어 패널 ---- */
+  #players { display: flex; gap: 8px; flex-wrap: wrap; width: min(660px, 96vw); margin-top: 10px; }
+  .pl {
+    background: var(--panel);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 8px 10px;
+    flex: 1;
+    min-width: 140px;
+  }
+  .pl.cur { border-color: var(--accent); box-shadow: 0 0 8px rgba(212,162,78,.25); }
+  .pl.dead { opacity: .4; }
+  .plname { font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
+  .plname .tdot { width: 10px; height: 10px; }
+  .plcash { font-size: 15px; font-weight: 700; color: var(--accent); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .pldots { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 5px; min-height: 8px; }
+  .pldots span { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+  .plbadges { font-size: 11px; color: var(--muted); margin-top: 4px; min-height: 14px; }
+
+  .controls { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; justify-content: center; align-items: center; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 10px; max-width: 620px; text-align: center; line-height: 1.6; }
+  a.home { color: var(--muted); font-size: 12px; margin-top: 16px; text-decoration: none; }
+  a.home:hover { color: var(--accent); }
+
+  /* ---- 오버레이 ---- */
+  #overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,17,22,.97);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    text-align: center;
+    padding: 24px;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 22px; margin-bottom: 12px; }
+  #overlay p { color: var(--muted); font-size: 15px; line-height: 1.7; max-width: 460px; white-space: pre-line; }
+  #overlayExtra { margin-top: 16px; }
+  #overlayExtra select { max-width: 90vw; }
+  #overlayBtns { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; min-width: 280px; }
+
+  @media (max-width: 600px) {
+    body { padding: 12px 8px; }
+    h1 { font-size: 18px; }
+    .sub { font-size: 11px; }
+    #board { gap: 2px; }
+    .tile { border-radius: 4px; }
+    .tile .strip { height: 3px; }
+    .tile .tico { font-size: 11px; margin-top: 3px; }
+    .tile .tname { font-size: 7.5px; margin-top: 5px; }
+    .tile .tsub { font-size: 6.5px; }
+    .tile .stars { font-size: 7px; min-height: 8px; }
+    .tile .own { width: 6px; height: 6px; top: 4px; right: 3px; }
+    .token { width: 8px; height: 8px; border-width: 1px; }
+    #turnLabel { font-size: 12px; }
+    .die { font-size: 32px; }
+    #banner { font-size: 9.5px; min-height: 46px; line-height: 1.5; }
+    #center { gap: 6px; padding: 4px; }
+    #center button { padding: 7px 12px; font-size: 12px; }
+    .pl { min-width: 120px; padding: 6px 8px; }
+    .plcash { font-size: 13px; }
+    .controls { gap: 6px; }
+    button, select { padding: 8px 12px; font-size: 13px; }
+    .hint { font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+  <h1>별마블 <span>★ Marble</span></h1>
+  <div class="sub">우주 테마 주사위 부동산 게임 · 32칸 · 2~4인 사람/AI 혼합 · 시작 자금 200만</div>
+
+  <div id="board">
+    <div id="center">
+      <div id="turnLabel"></div>
+      <div id="diceRow"><span class="die" id="die1">⚀</span><span class="die" id="die2">⚀</span></div>
+      <button id="rollBtn" class="primary">🎲 주사위 굴리기</button>
+      <div id="banner"></div>
+    </div>
+  </div>
+
+  <div id="players"></div>
+
+  <div class="controls">
+    <select id="seat0" title="새 게임부터 적용">
+      <option value="human" selected>좌석1: 사람</option>
+      <option value="ai">좌석1: AI</option>
+    </select>
+    <select id="seat1" title="새 게임부터 적용">
+      <option value="human">좌석2: 사람</option>
+      <option value="ai" selected>좌석2: AI</option>
+    </select>
+    <select id="seat2" title="새 게임부터 적용">
+      <option value="none" selected>좌석3: 없음</option>
+      <option value="human">좌석3: 사람</option>
+      <option value="ai">좌석3: AI</option>
+    </select>
+    <select id="seat3" title="새 게임부터 적용">
+      <option value="none" selected>좌석4: 없음</option>
+      <option value="human">좌석4: 사람</option>
+      <option value="ai">좌석4: AI</option>
+    </select>
+    <select id="endSel" title="새 게임부터 적용">
+      <option value="0">종료: 최후 1인 생존</option>
+      <option value="10">종료: 10바퀴 (총자산 1위)</option>
+      <option value="20" selected>종료: 20바퀴 (총자산 1위)</option>
+      <option value="30">종료: 30바퀴 (총자산 1위)</option>
+    </select>
+    <button id="newBtn">새 게임</button>
+  </div>
+
+  <div class="hint">
+    출발 통과 시 월급 +20만 · 더블이면 한 번 더 (3연속 더블은 무인도행) · 같은 색 그룹 독점 시 통행료 2배 ·
+    ⭐는 자기 도시에 도착했을 때 1개씩 건설 (최대 3개, 통행료 ×3/×6/×10) ·
+    무인도는 3턴 대기, 더블 또는 탈출 티켓으로 즉시 탈출 · 우주정거장은 다음 턴 원하는 칸으로 워프 ·
+    축제도시는 통행료 면제권 1장 · 잔액 부족 시 별→도시 순 자동 매각(매입가 절반), 그래도 부족하면 파산
+  </div>
+  <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <div id="overlay">
+    <h2 id="overlayTitle"></h2>
+    <p id="overlayDesc"></p>
+    <div id="overlayExtra"></div>
+    <div id="overlayBtns"></div>
+  </div>
+
+<script>
+// ===== CORE START =====
+// 별마블 코어 — DOM 없이 동작 (JXA 헤드리스 검증용). UI는 아래 별도 구역.
+const N_TILES = 32;
+const START_CASH = 2000000, SALARY = 200000, TAX = 100000;
+const BONUS_AMT = 100000, FEE_AMT = 50000;
+const T_START = 0, T_ISLAND = 8, T_STATION = 16, T_FESTIVAL = 24;
+const TOLL_MULT = [1, 3, 6, 10];            // ⭐ 0~3개 통행료 배율
+const MAX_STARS = 3;
+const PL_NAMES = ['빨강', '파랑', '초록', '노랑'];
+const PL_COLORS = ['#e05555', '#4e9fd4', '#58b45e', '#e0c04e'];
+const GROUP_NAMES = ['아시아', '아프리카·중동', '유럽', '북미', '환태평양', '프리미엄'];
+const GROUP_COLORS = ['#7cb342', '#26a69a', '#42a5f5', '#f6a13c', '#ef5350', '#ab47bc'];
+
+// 칸 배열 (반시계, 모서리 0/8/16/24) — 전부 자작 구성
+const TILES = [
+  { t: 'start',    n: '출발' },                              // 0
+  { t: 'city',     n: '하노이',    g: 0, price: 100000 },    // 1
+  { t: 'city',     n: '방콕',      g: 0, price: 120000 },    // 2
+  { t: 'chance',   n: '행운카드' },                          // 3
+  { t: 'city',     n: '자카르타',  g: 0, price: 140000 },    // 4
+  { t: 'city',     n: '나이로비',  g: 1, price: 160000 },    // 5
+  { t: 'tax',      n: '국세청' },                            // 6
+  { t: 'city',     n: '라고스',    g: 1, price: 180000 },    // 7
+  { t: 'island',   n: '무인도' },                            // 8
+  { t: 'city',     n: '아부다비',  g: 1, price: 200000 },    // 9
+  { t: 'city',     n: '프라하',    g: 2, price: 220000 },    // 10
+  { t: 'chance',   n: '행운카드' },                          // 11
+  { t: 'city',     n: '빈',        g: 2, price: 240000 },    // 12
+  { t: 'city',     n: '마드리드',  g: 2, price: 260000 },    // 13
+  { t: 'bonus',    n: '별빛장학금' },                        // 14
+  { t: 'city',     n: '뮌헨',      g: 2, price: 280000 },    // 15
+  { t: 'station',  n: '우주정거장' },                        // 16
+  { t: 'city',     n: '밴쿠버',    g: 3, price: 300000 },    // 17
+  { t: 'city',     n: '토론토',    g: 3, price: 320000 },    // 18
+  { t: 'chance',   n: '행운카드' },                          // 19
+  { t: 'city',     n: '시카고',    g: 3, price: 340000 },    // 20
+  { t: 'city',     n: '보스턴',    g: 3, price: 360000 },    // 21
+  { t: 'fee',      n: '위성정비소' },                        // 22
+  { t: 'city',     n: '상하이',    g: 4, price: 380000 },    // 23
+  { t: 'festival', n: '축제도시' },                          // 24
+  { t: 'city',     n: '오사카',    g: 4, price: 400000 },    // 25
+  { t: 'city',     n: '멜버른',    g: 4, price: 420000 },    // 26
+  { t: 'city',     n: '시애틀',    g: 4, price: 440000 },    // 27
+  { t: 'city',     n: '두바이',    g: 5, price: 460000 },    // 28
+  { t: 'city',     n: '밀라노',    g: 5, price: 480000 },    // 29
+  { t: 'city',     n: '취리히',    g: 5, price: 520000 },    // 30
+  { t: 'city',     n: '모나코',    g: 5, price: 560000 },    // 31
+];
+
+// 행운카드 14종 — 전부 자작 문구
+const CARDS = [
+  { txt: '유성우 관측 대성공! 관측 상금 10만을 받습니다.',                         fx: 'gain',    amt: 100000 },
+  { txt: '별빛 마라톤 완주! 완주 상금 8만을 받습니다.',                            fx: 'gain',    amt: 80000 },
+  { txt: '위성 안테나 수리비 청구서가 도착했습니다. 6만을 냅니다.',                fx: 'pay',     amt: 60000 },
+  { txt: '우주 쓰레기 수거 분담금 5만을 냅니다.',                                  fx: 'pay',     amt: 50000 },
+  { txt: '은하특급 무료 탑승권 당첨! 출발 칸으로 이동하고 월급을 받습니다.',       fx: 'gostart' },
+  { txt: '웜홀이 열렸다! 우주정거장으로 순간이동합니다.',                          fx: 'gostation' },
+  { txt: '블랙홀에 휘말려 항로 이탈… 무인도에 불시착합니다. (월급 없음)',          fx: 'goisland' },
+  { txt: '순풍을 탔다! 앞으로 3칸 이동합니다.',                                    fx: 'fwd',     amt: 3 },
+  { txt: '태양풍 역류! 뒤로 2칸 밀려납니다.',                                      fx: 'back',    amt: 2 },
+  { txt: '무인도 탈출 로켓 티켓을 얻었습니다. 소중히 보관하세요!',                 fx: 'ticket' },
+  { txt: '생일 축하 파티! 다른 모든 플레이어에게 3만씩 받습니다.',                 fx: 'collect', amt: 30000 },
+  { txt: '자선 별빛 바자회 개최! 기부금 7만을 냅니다.',                            fx: 'pay',     amt: 70000 },
+  { txt: '올해의 우주 부동산 대상 수상! 보유 도시 1곳당 2만을 받습니다.',          fx: 'perCity', amt: 20000 },
+  { txt: '긴급 시설 안전점검! 보유한 별(⭐) 1개당 1.5만을 냅니다.',                fx: 'perStar', amt: 15000 },
+];
+
+function fmt(n) { return (n / 10000).toLocaleString('ko-KR', { maximumFractionDigits: 1 }) + '만'; }
+function baseToll(price) { return price / 4; }
+function starCost(price) { return price / 2; }
+function pname(p) { return PL_NAMES[p.i] + (p.type === 'ai' ? '(AI)' : ''); }
+
+function coreNewGame(cfg) {
+  const players = cfg.seats.map((s, i) => ({
+    i, type: s, cash: START_CASH, pos: 0, alive: true,
+    jail: 0, tickets: 0, passes: 0, warp: false, laps: 0,
+  }));
+  return {
+    players,
+    owner: new Array(N_TILES).fill(-1),
+    stars: new Array(N_TILES).fill(0),
+    turn: 0, dbl: 0, again: false,
+    phase: 'play', pending: null, winner: -1, overReason: '',
+    endLaps: cfg.endLaps || 0,
+    bank: 0,               // 은행 → 플레이어 누적 순유출 (대차 검증용)
+    ev: [], moves: [],
+    turnCount: 0,
+    rng: cfg.rng || Math.random,
+    forceCard: null,       // 테스트용: 다음 행운카드 강제 지정
+  };
+}
+
+function cur(g) { return g.players[g.turn]; }
+function evPush(g, msg) { g.ev.push(msg); }
+function aliveCount(g) { return g.players.reduce((a, p) => a + (p.alive ? 1 : 0), 0); }
+function bankPay(g, p, amt) { p.cash += amt; g.bank += amt; }
+function transfer(g, from, to, amt) { from.cash -= amt; to.cash += amt; }
+
+function groupSize(gi) { return TILES.reduce((a, t) => a + (t.t === 'city' && t.g === gi ? 1 : 0), 0); }
+function groupCount(g, gi, pi) {
+  let n = 0;
+  for (let t = 0; t < N_TILES; t++) if (TILES[t].t === 'city' && TILES[t].g === gi && g.owner[t] === pi) n++;
+  return n;
+}
+function isMonopoly(g, t) {
+  const o = g.owner[t];
+  if (o === -1) return false;
+  return groupCount(g, TILES[t].g, o) === groupSize(TILES[t].g);
+}
+function tollOf(g, t) {
+  let toll = baseToll(TILES[t].price) * TOLL_MULT[g.stars[t]];
+  if (isMonopoly(g, t)) toll *= 2;
+  return toll;
+}
+function totalAssets(g, p) {
+  let a = p.cash;
+  for (let t = 0; t < N_TILES; t++)
+    if (g.owner[t] === p.i) a += TILES[t].price + g.stars[t] * starCost(TILES[t].price);
+  return a;
+}
+
+function paySalary(g, p) {
+  bankPay(g, p, SALARY);
+  p.laps++;
+  evPush(g, `💸 ${pname(p)} 출발 통과 — 월급 ${fmt(SALARY)}`);
+}
+// 전진 이동 (출발 통과 시 월급)
+function moveForward(g, p, steps) {
+  const from = p.pos, to = (from + steps) % N_TILES;
+  if (from + steps >= N_TILES) paySalary(g, p);
+  p.pos = to;
+  g.moves.push({ p: p.i, from, to, tele: false, back: false });
+}
+// 지정 칸으로 전진 순간이동 (salary=true면 출발 통과 판정)
+function travel(g, p, dest, salary, tele) {
+  const from = p.pos;
+  let dist = (dest - from + N_TILES) % N_TILES;
+  if (dist === 0) dist = N_TILES;
+  if (salary && from + dist >= N_TILES) paySalary(g, p);
+  p.pos = dest;
+  g.moves.push({ p: p.i, from, to: dest, tele: !!tele, back: false });
+}
+function moveBack(g, p, steps) {
+  const from = p.pos, to = (from - steps + N_TILES) % N_TILES;
+  p.pos = to;
+  g.moves.push({ p: p.i, from, to, tele: false, back: true });
+}
+
+// 강제 매각: ⭐ 전부 → 도시 순, 매입가 절반 환급 (need 도달 시 중단)
+function forceSell(g, p, need) {
+  for (let t = 0; t < N_TILES && p.cash < need; t++) {
+    if (g.owner[t] !== p.i) continue;
+    while (g.stars[t] > 0 && p.cash < need) {
+      g.stars[t]--;
+      const r = starCost(TILES[t].price) / 2;
+      bankPay(g, p, r);
+      evPush(g, `🔨 ${pname(p)} ⭐ 매각: ${TILES[t].n} (+${fmt(r)})`);
+    }
+  }
+  for (let t = 0; t < N_TILES && p.cash < need; t++) {
+    if (g.owner[t] !== p.i) continue;
+    g.owner[t] = -1;
+    g.stars[t] = 0;
+    const r = TILES[t].price / 2;
+    bankPay(g, p, r);
+    evPush(g, `🔨 ${pname(p)} 도시 매각: ${TILES[t].n} (+${fmt(r)})`);
+  }
+}
+// 지불 (to: 채권자 플레이어 또는 null=은행). 부족 시 매각 → 그래도 부족하면 파산.
+function payDue(g, p, amount, to) {
+  forceSell(g, p, amount);
+  if (p.cash >= amount) {
+    if (to) transfer(g, p, to, amount);
+    else bankPay(g, p, -amount);
+    return true;
+  }
+  const rest = p.cash;
+  if (to) transfer(g, p, to, rest);
+  else if (rest > 0) bankPay(g, p, -rest);
+  p.cash = 0;
+  p.alive = false;
+  p.jail = 0; p.warp = false; p.tickets = 0; p.passes = 0;
+  evPush(g, `💥 ${pname(p)} 파산! 게임에서 탈락합니다.`);
+  return false;
+}
+
+// 도착 칸 처리 — 결정이 필요하면 g.pending 설정
+function arrival(g, p) {
+  const t = p.pos, ti = TILES[t];
+  switch (ti.t) {
+    case 'start':
+      break; // 월급은 통과 판정에서 이미 지급
+    case 'city': {
+      const o = g.owner[t];
+      if (o === -1) {
+        if (p.cash >= ti.price) g.pending = { t: 'buy', p: p.i, tile: t };
+        else evPush(g, `😢 ${pname(p)} 잔액 부족 — ${ti.n} 매입 불가`);
+      } else if (o === p.i) {
+        const c = starCost(ti.price);
+        if (g.stars[t] < MAX_STARS && p.cash >= c) g.pending = { t: 'build', p: p.i, tile: t };
+      } else {
+        const amount = tollOf(g, t);
+        g.pending = { t: 'toll', p: p.i, tile: t, to: o, amount, canPass: p.passes > 0 };
+      }
+      break;
+    }
+    case 'chance': {
+      const id = g.forceCard !== null ? g.forceCard : Math.floor(g.rng() * CARDS.length);
+      g.forceCard = null;
+      g.pending = { t: 'card', p: p.i, card: id };
+      break;
+    }
+    case 'tax':
+      evPush(g, `🏛️ ${pname(p)} 국세청 — 세금 ${fmt(TAX)} 납부`);
+      payDue(g, p, TAX, null);
+      break;
+    case 'island':
+      p.jail = 3;
+      evPush(g, `🏝️ ${pname(p)} 무인도 도착 — 3턴 대기 (더블이면 탈출)`);
+      break;
+    case 'station':
+      p.warp = true;
+      evPush(g, `🛰️ ${pname(p)} 우주정거장 — 다음 턴에 원하는 칸으로 워프!`);
+      break;
+    case 'festival':
+      p.passes++;
+      evPush(g, `🎪 ${pname(p)} 축제도시 — 통행료 면제권 획득 (보유 ${p.passes}장)`);
+      break;
+    case 'bonus':
+      bankPay(g, p, BONUS_AMT);
+      evPush(g, `🎓 ${pname(p)} 별빛장학금 ${fmt(BONUS_AMT)} 수령`);
+      break;
+    case 'fee':
+      evPush(g, `🔧 ${pname(p)} 위성정비소 — 수리비 ${fmt(FEE_AMT)}`);
+      payDue(g, p, FEE_AMT, null);
+      break;
+  }
+}
+
+// 턴 시작: 탈출 티켓 자동 사용, 워프 여부 반환
+function startTurn(g) {
+  const p = cur(g);
+  if (p.jail > 0 && p.tickets > 0) {
+    p.tickets--;
+    p.jail = 0;
+    evPush(g, `🚀 ${pname(p)} 탈출 티켓 사용 — 무인도 탈출!`);
+  }
+  if (p.warp) return { t: 'warp' };
+  return { t: 'roll' };
+}
+
+function doRoll(g, d1, d2) {
+  const p = cur(g);
+  g.dice = [d1, d2];
+  g.again = false;
+  const dbl = d1 === d2, sum = d1 + d2;
+  evPush(g, `🎲 ${pname(p)} — ${d1} + ${d2} = ${sum}${dbl ? ' (더블!)' : ''}`);
+  if (p.jail > 0) {
+    if (dbl) {
+      p.jail = 0;
+      evPush(g, `🏝️ 더블! ${pname(p)} 무인도 탈출`);
+      moveForward(g, p, sum);
+      arrival(g, p);
+    } else {
+      p.jail--;
+      evPush(g, p.jail > 0 ? `🏝️ ${pname(p)} 무인도 대기 — 남은 ${p.jail}턴` : `🏝️ ${pname(p)} 대기 종료 — 다음 턴부터 출발`);
+    }
+    return;
+  }
+  if (dbl) {
+    g.dbl++;
+    if (g.dbl >= 3) {
+      evPush(g, `🚨 3연속 더블 — ${pname(p)} 무인도로 끌려갑니다!`);
+      travel(g, p, T_ISLAND, false, true);
+      arrival(g, p);      // jail = 3
+      g.dbl = 0;
+      return;
+    }
+    g.again = true;
+    evPush(g, `✨ 더블 — 한 번 더!`);
+  } else g.dbl = 0;
+  moveForward(g, p, sum);
+  arrival(g, p);
+  if (p.jail > 0 || !p.alive) g.again = false;
+}
+
+function resolveBuy(g, yes) {
+  const pd = g.pending; g.pending = null;
+  const p = g.players[pd.p], ti = TILES[pd.tile];
+  if (yes && p.cash >= ti.price) {
+    bankPay(g, p, -ti.price);
+    g.owner[pd.tile] = p.i;
+    evPush(g, `🏙️ ${pname(p)} ${ti.n} 매입 (${fmt(ti.price)})${isMonopoly(g, pd.tile) ? ' — 🎉 그룹 독점!' : ''}`);
+  } else if (!yes) {
+    evPush(g, `${pname(p)} ${ti.n} 매입 포기`);
+  }
+}
+function resolveBuild(g, yes) {
+  const pd = g.pending; g.pending = null;
+  const p = g.players[pd.p], ti = TILES[pd.tile], c = starCost(ti.price);
+  if (yes && g.stars[pd.tile] < MAX_STARS && p.cash >= c) {
+    bankPay(g, p, -c);
+    g.stars[pd.tile]++;
+    evPush(g, `⭐ ${pname(p)} ${ti.n}에 별 건설 (⭐${g.stars[pd.tile]}, ${fmt(c)})`);
+  }
+}
+function resolveToll(g, usePass) {
+  const pd = g.pending; g.pending = null;
+  const p = g.players[pd.p], o = g.players[pd.to];
+  if (usePass && p.passes > 0) {
+    p.passes--;
+    evPush(g, `🎟️ ${pname(p)} 통행료 면제권 사용! (남은 ${p.passes}장)`);
+    return;
+  }
+  evPush(g, `💸 ${pname(p)} → ${pname(o)} ${TILES[pd.tile].n} 통행료 ${fmt(pd.amount)}`);
+  payDue(g, p, pd.amount, o);
+}
+function resolveWarp(g, dest) {
+  const p = cur(g);
+  p.warp = false;
+  evPush(g, `🛰️ ${pname(p)} 워프 → ${TILES[dest].n}`);
+  travel(g, p, dest, true, true);
+  arrival(g, p);
+}
+function resolveCard(g) {
+  const pd = g.pending; g.pending = null;
+  const p = g.players[pd.p], c = CARDS[pd.card];
+  evPush(g, `🃏 행운카드: ${c.txt}`);
+  switch (c.fx) {
+    case 'gain': bankPay(g, p, c.amt); break;
+    case 'pay': payDue(g, p, c.amt, null); break;
+    case 'gostart': travel(g, p, T_START, true, true); arrival(g, p); break;
+    case 'gostation': travel(g, p, T_STATION, true, true); arrival(g, p); break;
+    case 'goisland': travel(g, p, T_ISLAND, false, true); arrival(g, p); break;
+    case 'fwd': moveForward(g, p, c.amt); arrival(g, p); break;
+    case 'back': moveBack(g, p, c.amt); arrival(g, p); break;
+    case 'ticket': p.tickets++; break;
+    case 'collect':
+      for (const q of g.players) if (q.alive && q !== p) payDue(g, q, c.amt, p);
+      break;
+    case 'perCity': {
+      let n = 0;
+      for (let t = 0; t < N_TILES; t++) if (g.owner[t] === p.i) n++;
+      if (n > 0) bankPay(g, p, c.amt * n);
+      break;
+    }
+    case 'perStar': {
+      let n = 0;
+      for (let t = 0; t < N_TILES; t++) if (g.owner[t] === p.i) n += g.stars[t];
+      if (n > 0) payDue(g, p, c.amt * n, null);
+      break;
+    }
+  }
+}
+
+// 턴 마무리: 'again'(더블 한 번 더) | 'next' | 'over' | 'pending'
+function turnDone(g) {
+  if (g.pending) return 'pending';
+  if (g.phase === 'over') return 'over';
+  g.turnCount++;
+  if (aliveCount(g) === 1) {
+    g.phase = 'over';
+    g.winner = g.players.find(p => p.alive).i;
+    g.overReason = 'survive';
+    return 'over';
+  }
+  if (g.endLaps > 0 && g.players.some(p => p.alive && p.laps >= g.endLaps)) {
+    g.phase = 'over';
+    let best = -1, bestA = -1;
+    for (const p of g.players) {
+      if (!p.alive) continue;
+      const a = totalAssets(g, p);
+      if (a > bestA) { bestA = a; best = p.i; }
+    }
+    g.winner = best;
+    g.overReason = 'laps';
+    return 'over';
+  }
+  const p = cur(g);
+  if (g.again && p.alive && p.jail === 0) { g.again = false; return 'again'; }
+  g.again = false;
+  g.dbl = 0;
+  do { g.turn = (g.turn + 1) % g.players.length; } while (!cur(g).alive);
+  return 'next';
+}
+
+// ---- AI 휴리스틱 ----
+// 구매: 현금 30% 여유 시. 그룹 연고 있으면 완화, 독점 완성이면 최우선. 위험(잔액 바닥) 시 보존.
+function aiDecide(g, pd) {
+  const p = g.players[pd.p];
+  if (pd.t === 'buy') {
+    const ti = TILES[pd.tile];
+    const size = groupSize(ti.g), mine = groupCount(g, ti.g, p.i);
+    const left = p.cash - ti.price;
+    let ok;
+    if (mine === size - 1) ok = left >= 100000;                              // 독점 완성
+    else if (mine > 0) ok = left >= Math.max(150000, p.cash * 0.2);          // 그룹 연고
+    else ok = left >= Math.max(200000, p.cash * 0.3);                        // 기본: 30% 여유
+    resolveBuy(g, ok);
+  } else if (pd.t === 'build') {
+    const c = starCost(TILES[pd.tile].price), left = p.cash - c;
+    const ok = isMonopoly(g, pd.tile)
+      ? left >= Math.max(200000, p.cash * 0.25)                              // 독점 우선 건설
+      : left >= 800000;                                                      // 비독점은 부유할 때만
+    resolveBuild(g, ok);
+  } else if (pd.t === 'toll') {
+    resolveToll(g, pd.canPass && (pd.amount >= 150000 || pd.amount >= p.cash * 0.5));
+  } else if (pd.t === 'card') {
+    resolveCard(g);
+  }
+}
+// 워프 목적지: 독점 완성 > 그룹 연고 도시 > 비싼 미소유 도시 > 내 독점 도시 건설 > 출발(월급)
+function aiWarpDest(g) {
+  const p = cur(g);
+  let best = -1, bestScore = -Infinity;
+  for (let t = 0; t < N_TILES; t++) {
+    const ti = TILES[t];
+    if (ti.t !== 'city' || g.owner[t] !== -1) continue;
+    if (p.cash - ti.price < 150000) continue;
+    const size = groupSize(ti.g), mine = groupCount(g, ti.g, p.i);
+    if (mine === 0 && p.cash - ti.price < p.cash * 0.3) continue;
+    let sc = ti.price / 10000 + mine * 40 + (mine === size - 1 ? 200 : 0);
+    if (sc > bestScore) { bestScore = sc; best = t; }
+  }
+  if (best >= 0) return best;
+  for (let t = 0; t < N_TILES; t++)
+    if (g.owner[t] === p.i && g.stars[t] < MAX_STARS && isMonopoly(g, t) &&
+        p.cash - starCost(TILES[t].price) >= 200000) return t;
+  return T_START;
+}
+
+const __core = {
+  N_TILES, START_CASH, SALARY, TAX, BONUS_AMT, FEE_AMT, TOLL_MULT, MAX_STARS,
+  TILES, CARDS, PL_NAMES, GROUP_NAMES, GROUP_COLORS,
+  T_START, T_ISLAND, T_STATION, T_FESTIVAL,
+  fmt, baseToll, starCost, pname, coreNewGame, cur, aliveCount,
+  groupSize, groupCount, isMonopoly, tollOf, totalAssets,
+  moveForward, travel, moveBack, forceSell, payDue, arrival,
+  startTurn, doRoll, turnDone,
+  resolveBuy, resolveBuild, resolveToll, resolveWarp, resolveCard,
+  aiDecide, aiWarpDest,
+};
+if (typeof window !== 'undefined') window.__core = __core;
+// ===== CORE END =====
+
+// ================= UI =================
+const byId = id => document.getElementById(id);
+const DIE_CH = '⚀⚁⚂⚃⚄⚅';
+const overlay = byId('overlay'), ovTitle = byId('overlayTitle'),
+      ovDesc = byId('overlayDesc'), ovExtra = byId('overlayExtra'), ovBtns = byId('overlayBtns');
+const rollBtn = byId('rollBtn');
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+let g = null, session = 0, uiPos = [], busy = false;
+
+// ---- 보드 DOM 생성 ----
+function gridPos(i) {
+  if (i <= 8) return [9, 9 - i];       // 아래줄: 오른쪽→왼쪽
+  if (i <= 16) return [17 - i, 1];     // 왼쪽줄: 아래→위
+  if (i <= 24) return [1, i - 15];     // 윗줄: 왼쪽→오른쪽
+  return [i - 23, 9];                  // 오른쪽줄: 위→아래
+}
+const TILE_ICONS = { start: '🚩', chance: '✨', tax: '🏛️', island: '🏝️', station: '🛰️', festival: '🎪', bonus: '🎓', fee: '🔧' };
+const TILE_SUBS = { start: '월급 +20만', chance: '', tax: '-10만', island: '3턴 대기', station: '워프', festival: '면제권', bonus: '+10만', fee: '-5만' };
+
+function buildBoard() {
+  const board = byId('board');
+  for (let i = 0; i < N_TILES; i++) {
+    const ti = TILES[i];
+    const d = document.createElement('div');
+    d.className = 'tile' + ([0, 8, 16, 24].includes(i) ? ' corner' : (ti.t !== 'city' ? ' special' : ''));
+    d.id = 'tile' + i;
+    const [r, c] = gridPos(i);
+    d.style.gridRow = r;
+    d.style.gridColumn = c;
+    if (ti.t === 'city') {
+      const s = document.createElement('div');
+      s.className = 'strip';
+      s.style.background = GROUP_COLORS[ti.g];
+      d.appendChild(s);
+    } else {
+      const ic = document.createElement('div');
+      ic.className = 'tico';
+      ic.textContent = TILE_ICONS[ti.t];
+      d.appendChild(ic);
+    }
+    const nm = document.createElement('div');
+    nm.className = 'tname';
+    nm.textContent = ti.n;
+    d.appendChild(nm);
+    const sub = document.createElement('div');
+    sub.className = 'tsub';
+    sub.textContent = ti.t === 'city' ? fmt(ti.price) : TILE_SUBS[ti.t];
+    d.appendChild(sub);
+    const st = document.createElement('div');
+    st.className = 'stars';
+    d.appendChild(st);
+    const own = document.createElement('div');
+    own.className = 'own';
+    d.appendChild(own);
+    const tk = document.createElement('div');
+    tk.className = 'tk';
+    d.appendChild(tk);
+    board.appendChild(d);
+  }
+}
+
+// ---- 렌더링 ----
+function renderTokens() {
+  for (let t = 0; t < N_TILES; t++) byId('tile' + t).querySelector('.tk').innerHTML = '';
+  if (!g) return;
+  g.players.forEach(p => {
+    if (!p.alive) return;
+    const el = document.createElement('div');
+    el.className = 'token' + (g.phase !== 'over' && p.i === g.turn ? ' on' : '');
+    el.style.background = PL_COLORS[p.i];
+    byId('tile' + uiPos[p.i]).querySelector('.tk').appendChild(el);
+  });
+}
+function updateTiles() {
+  for (let t = 0; t < N_TILES; t++) {
+    if (TILES[t].t !== 'city') continue;
+    const el = byId('tile' + t);
+    const own = el.querySelector('.own');
+    if (g && g.owner[t] >= 0) {
+      own.style.display = 'block';
+      own.style.background = PL_COLORS[g.owner[t]];
+    } else own.style.display = 'none';
+    el.querySelector('.stars').textContent = g ? '★'.repeat(g.stars[t]) : '';
+  }
+}
+function updatePanels() {
+  const wrap = byId('players');
+  wrap.innerHTML = '';
+  if (!g) return;
+  g.players.forEach(p => {
+    const d = document.createElement('div');
+    d.className = 'pl' + (p.alive ? (g.phase !== 'over' && p.i === g.turn ? ' cur' : '') : ' dead');
+    const nm = document.createElement('div');
+    nm.className = 'plname';
+    nm.innerHTML = `<span class="tdot" style="background:${PL_COLORS[p.i]}"></span>`;
+    nm.appendChild(document.createTextNode(`${PL_NAMES[p.i]} (${p.type === 'ai' ? 'AI' : '사람'})${p.alive ? '' : ' — 파산'}`));
+    d.appendChild(nm);
+    const cash = document.createElement('div');
+    cash.className = 'plcash';
+    cash.textContent = fmt(p.cash);
+    d.appendChild(cash);
+    const dots = document.createElement('div');
+    dots.className = 'pldots';
+    for (let t = 0; t < N_TILES; t++) {
+      if (g.owner[t] !== p.i) continue;
+      const s = document.createElement('span');
+      s.style.background = GROUP_COLORS[TILES[t].g];
+      s.title = TILES[t].n + (g.stars[t] ? ` ⭐${g.stars[t]}` : '');
+      dots.appendChild(s);
+    }
+    d.appendChild(dots);
+    const bd = document.createElement('div');
+    bd.className = 'plbadges';
+    const parts = [];
+    if (p.tickets) parts.push('🚀×' + p.tickets);
+    if (p.passes) parts.push('🎟️×' + p.passes);
+    if (p.jail) parts.push('🏝️' + p.jail + '턴');
+    if (p.warp) parts.push('🛰️워프');
+    parts.push(p.laps + '바퀴');
+    bd.textContent = parts.join('  ');
+    d.appendChild(bd);
+    wrap.appendChild(d);
+  });
+}
+function updateTurnLabel() {
+  const el = byId('turnLabel');
+  if (!g) { el.textContent = ''; return; }
+  if (g.phase === 'over') {
+    el.innerHTML = `<span class="tdot" style="background:${PL_COLORS[g.winner]}"></span>🏆 ${PL_NAMES[g.winner]} 승리!`;
+    return;
+  }
+  const p = cur(g);
+  el.innerHTML = `<span class="tdot" style="background:${PL_COLORS[p.i]}"></span>${PL_NAMES[p.i]} 차례 (${p.type === 'ai' ? 'AI' : '사람'})`
+    + (g.endLaps ? ` · ${p.laps}/${g.endLaps}바퀴` : '');
+}
+function flushBanner() {
+  if (!g) return;
+  const evs = g.ev.slice(-3);
+  byId('banner').innerHTML = evs.map((e, i) =>
+    i === evs.length - 1 ? `<span class="last">${escapeHtml(e)}</span>` : escapeHtml(e)
+  ).join('<br>');
+}
+function escapeHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function updateAll() { updateTiles(); renderTokens(); updatePanels(); updateTurnLabel(); }
+function setRoll(enabled, label) {
+  rollBtn.disabled = !enabled;
+  if (label) rollBtn.textContent = label;
+}
+
+// ---- 오버레이 ----
+function showChoice(title, desc, buttons) {
+  return new Promise(res => {
+    ovTitle.textContent = title;
+    ovDesc.textContent = desc;
+    ovExtra.innerHTML = '';
+    ovBtns.innerHTML = '';
+    buttons.forEach((label, i) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      if (i === 0) b.className = 'primary';
+      b.addEventListener('click', () => { hideOverlay(); res(i); });
+      ovBtns.appendChild(b);
+    });
+    overlay.classList.add('show');
+  });
+}
+function showCardAuto(txt, ms) {
+  return new Promise(res => {
+    ovTitle.textContent = '행운카드 ✨';
+    ovDesc.textContent = txt;
+    ovExtra.innerHTML = '';
+    ovBtns.innerHTML = '';
+    overlay.classList.add('show');
+    setTimeout(() => { hideOverlay(); res(); }, ms);
+  });
+}
+function hideOverlay() { overlay.classList.remove('show'); }
+
+function warpOverlay() {
+  return new Promise(res => {
+    ovTitle.textContent = '🛰️ 우주정거장 워프';
+    ovDesc.textContent = '이동할 칸을 고르세요. 출발 칸을 지나면 월급을 받습니다.';
+    ovExtra.innerHTML = '';
+    const sel = document.createElement('select');
+    for (let t = 0; t < N_TILES; t++) {
+      const ti = TILES[t];
+      let info = '';
+      if (ti.t === 'city') {
+        const ow = g.owner[t];
+        info = ow === -1 ? ` — ${fmt(ti.price)}`
+          : ow === cur(g).i ? ' — 내 도시'
+          : ` — ${PL_NAMES[ow]} 소유 (통행료 ${fmt(tollOf(g, t))})`;
+      }
+      const o = document.createElement('option');
+      o.value = t;
+      o.textContent = `${t}. ${ti.n}${info}`;
+      sel.appendChild(o);
+    }
+    sel.value = String(T_START);
+    ovExtra.appendChild(sel);
+    ovBtns.innerHTML = '';
+    const b = document.createElement('button');
+    b.className = 'primary';
+    b.textContent = '🛰️ 이동';
+    b.addEventListener('click', () => { hideOverlay(); res(parseInt(sel.value, 10)); });
+    ovBtns.appendChild(b);
+    overlay.classList.add('show');
+  });
+}
+
+// ---- 애니메이션 ----
+async function animateDice(d1, d2, s) {
+  const e1 = byId('die1'), e2 = byId('die2');
+  for (let i = 0; i < 6; i++) {
+    e1.textContent = DIE_CH[Math.floor(Math.random() * 6)];
+    e2.textContent = DIE_CH[Math.floor(Math.random() * 6)];
+    await delay(55);
+    if (s !== session) return;
+  }
+  e1.textContent = DIE_CH[d1 - 1];
+  e2.textContent = DIE_CH[d2 - 1];
+  await delay(250);
+}
+async function animateMoves(s) {
+  const list = g.moves.splice(0);
+  for (const m of list) {
+    if (s !== session) return;
+    if (m.tele) {
+      await delay(280);
+      if (s !== session) return;
+      uiPos[m.p] = m.to;
+      renderTokens();
+      await delay(320);
+      continue;
+    }
+    let c = m.from;
+    while (c !== m.to) {
+      c = m.back ? (c + N_TILES - 1) % N_TILES : (c + 1) % N_TILES;
+      uiPos[m.p] = c;
+      renderTokens();
+      await delay(110);
+      if (s !== session) return;
+    }
+  }
+}
+
+// ---- 게임 진행 ----
+function newGameUI() {
+  session++;
+  const seats = [];
+  for (let i = 0; i < 4; i++) {
+    const el = byId('seat' + i);
+    if (el.value !== 'none') seats.push(el.value);
+  }
+  g = coreNewGame({ seats, endLaps: parseInt(byId('endSel').value, 10), rng: Math.random });
+  uiPos = g.players.map(p => p.pos);
+  hideOverlay();
+  byId('banner').textContent = '';
+  byId('die1').textContent = DIE_CH[0];
+  byId('die2').textContent = DIE_CH[0];
+  busy = false;
+  updateAll();
+  playTurn(session);
+}
+
+async function playTurn(s) {
+  if (s !== session || !g || g.phase === 'over') return;
+  updateAll();
+  const p = cur(g);
+  const st = startTurn(g);
+  flushBanner();
+  updateAll();
+  if (st.t === 'warp') {
+    setRoll(false, '🛰️ 워프 중…');
+    busy = true;
+    if (p.type === 'ai') {
+      await delay(800);
+      if (s !== session) return;
+      resolveWarp(g, aiWarpDest(g));
+    } else {
+      const dest = await warpOverlay();
+      if (s !== session) return;
+      resolveWarp(g, dest);
+    }
+    await afterAction(s);
+    return;
+  }
+  if (p.type === 'ai') {
+    setRoll(false, 'AI 차례…');
+    await delay(800);
+    if (s !== session) return;
+    await doRollUI(s);
+  } else {
+    setRoll(true, p.jail > 0 ? '🎲 탈출 시도 (더블!)' : '🎲 주사위 굴리기');
+  }
+}
+
+async function doRollUI(s) {
+  busy = true;
+  setRoll(false);
+  const d1 = 1 + Math.floor(Math.random() * 6);
+  const d2 = 1 + Math.floor(Math.random() * 6);
+  await animateDice(d1, d2, s);
+  if (s !== session) return;
+  doRoll(g, d1, d2);
+  await afterAction(s);
+}
+
+async function afterAction(s) {
+  if (s !== session) return;
+  await animateMoves(s);
+  if (s !== session) return;
+  flushBanner();
+  updateAll();
+  await handlePendings(s);
+  if (s !== session) return;
+  busy = false;
+  const r = turnDone(g);
+  flushBanner();
+  updateAll();
+  if (r === 'over') { showGameOver(); return; }
+  playTurn(s);
+}
+
+async function handlePendings(s) {
+  while (g.pending && s === session) {
+    const pd = g.pending, p = g.players[pd.p];
+    if (pd.t === 'card') {
+      const txt = CARDS[pd.card].txt;
+      if (p.type === 'ai') await showCardAuto(txt, 1300);
+      else await showChoice('행운카드 ✨', txt, ['확인']);
+      if (s !== session) return;
+      resolveCard(g);
+    } else if (p.type === 'ai') {
+      await delay(600);
+      if (s !== session) return;
+      aiDecide(g, pd);
+    } else {
+      await humanPending(pd, s);
+    }
+    if (s !== session) return;
+    await animateMoves(s);
+    if (s !== session) return;
+    flushBanner();
+    updateAll();
+  }
+}
+
+async function humanPending(pd, s) {
+  if (pd.t === 'buy') {
+    const ti = TILES[pd.tile];
+    const i = await showChoice(`${ti.n} 매입`,
+      `${GROUP_NAMES[ti.g]} 그룹 · 가격 ${fmt(ti.price)}\n기본 통행료 ${fmt(baseToll(ti.price))} — 그룹 독점 시 2배\n⭐ 건설비 ${fmt(starCost(ti.price))}/개 (통행료 ×3/×6/×10)`,
+      [`💰 매입 (${fmt(ti.price)})`, '패스']);
+    if (s !== session) return;
+    resolveBuy(g, i === 0);
+  } else if (pd.t === 'build') {
+    const ti = TILES[pd.tile], c = starCost(ti.price);
+    const now = tollOf(g, pd.tile);
+    const mono = isMonopoly(g, pd.tile);
+    const next = baseToll(ti.price) * TOLL_MULT[g.stars[pd.tile] + 1] * (mono ? 2 : 1);
+    const i = await showChoice(`${ti.n} — 별 건설`,
+      `현재 ⭐${g.stars[pd.tile]}개 · 통행료 ${fmt(now)}\n건설 시 ⭐${g.stars[pd.tile] + 1}개 · 통행료 ${fmt(next)}`,
+      [`⭐ 건설 (${fmt(c)})`, '패스']);
+    if (s !== session) return;
+    resolveBuild(g, i === 0);
+  } else if (pd.t === 'toll') {
+    const ti = TILES[pd.tile];
+    if (pd.canPass) {
+      const i = await showChoice(`${ti.n} 통행료`,
+        `${PL_NAMES[pd.to]}의 도시입니다.\n통행료 ${fmt(pd.amount)}을(를) 내야 합니다.`,
+        ['🎟️ 면제권 사용', `💸 지불 (${fmt(pd.amount)})`]);
+      if (s !== session) return;
+      resolveToll(g, i === 0);
+    } else {
+      await showChoice(`${ti.n} 통행료`,
+        `${PL_NAMES[pd.to]}의 도시입니다.\n통행료 ${fmt(pd.amount)}을(를) 냅니다.\n(잔액 부족 시 별→도시 순으로 자동 매각됩니다)`,
+        [`💸 지불 (${fmt(pd.amount)})`]);
+      if (s !== session) return;
+      resolveToll(g, false);
+    }
+  }
+}
+
+function showGameOver() {
+  setRoll(false, '게임 종료');
+  updateAll();
+  const ranked = [...g.players].sort((a, b) =>
+    (b.alive - a.alive) || (totalAssets(g, b) - totalAssets(g, a)));
+  const lines = ranked.map((p, i) =>
+    `${i + 1}위 ${PL_NAMES[p.i]}${p.type === 'ai' ? '(AI)' : ''} — ${p.alive ? '총자산 ' + fmt(totalAssets(g, p)) : '파산'}`);
+  const reason = g.overReason === 'survive' ? '최후 1인 생존!' : `${g.endLaps}바퀴 도달 — 총자산 순위로 결정`;
+  showChoice(`🏆 ${PL_NAMES[g.winner]} 승리!`, reason + '\n\n' + lines.join('\n'), ['새 게임'])
+    .then(() => newGameUI());
+}
+
+// ---- 이벤트 바인딩 ----
+rollBtn.addEventListener('click', () => {
+  if (!g || g.phase === 'over' || busy) return;
+  const p = cur(g);
+  if (p.type !== 'human') return;
+  doRollUI(session);
+});
+byId('newBtn').addEventListener('click', newGameUI);
+
+buildBoard();
+newGameUI();
+</script>
+</body>
+</html>

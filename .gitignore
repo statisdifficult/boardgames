@@ -1,0 +1,15 @@
+# 시스템/캐시
+.DS_Store
+__pycache__/
+*.pyc
+nohup.out
+*.log
+
+# 모델 백업·실험본은 커밋 안 함 (현역 모델 batoo_net.pt / batoo_net_full.pt 만 추적)
+batoo_net_prev.pt
+batoo_net_iter*.pt
+batoo_net_linux_broken.pt
+batoo_net_full_OLD*.pt
+
+# 로컬 전용 설정
+.claude/settings.local.json

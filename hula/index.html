@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>훌라</title>
+<style>
+  :root {
+    --bg: #1a1d24;
+    --panel: #242832;
+    --text: #e8e6e0;
+    --muted: #9a9788;
+    --accent: #d4a24e;
+    --joker: #7a5bbf;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Apple SD Gothic Neo", "Pretendard", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px 12px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 4px; text-align: center; }
+  #status { margin: 12px 0 2px; font-size: 16px; font-weight: 600; min-height: 24px; text-align: center; }
+  #notice { min-height: 20px; font-size: 13px; color: var(--accent); margin-bottom: 10px; text-align: center; max-width: 720px; line-height: 1.5; }
+  #table { width: 100%; max-width: 880px; display: flex; flex-direction: column; gap: 10px; }
+  .zone { background: var(--panel); border: 1px solid #2c3140; border-radius: 10px; padding: 10px 12px; }
+  .zone.active { border-color: var(--accent); }
+  .zlabel { font-size: 12px; color: var(--muted); margin: 2px 0 6px; }
+  .zlabel b { color: var(--accent); font-weight: 700; }
+  .zlabel .tip { color: #565b6a; }
+  .hand { display: flex; flex-wrap: wrap; gap: 6px; min-height: 62px; align-items: flex-end; }
+  .melds { display: flex; flex-wrap: wrap; gap: 10px; min-height: 56px; align-items: center; }
+  .melds .none { color: #565b6a; font-size: 12px; }
+  .meld { display: flex; gap: 3px; background: rgba(255,255,255,.04); border: 1px solid #3a3f4d; border-radius: 8px; padding: 5px; }
+  .meld.hot { cursor: pointer; }
+  .meld.hot:hover { border-color: var(--accent); background: rgba(212,162,78,.08); }
+  #centerRow { display: flex; gap: 28px; justify-content: center; align-items: flex-start; padding: 4px 0; }
+  .pilebox { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; }
+  .pilebox:hover .plabel { color: var(--accent); }
+  .plabel { font-size: 12px; color: var(--muted); }
+  .plabel b { color: var(--accent); }
+
+  /* ---- 카드 (holdem .pcard 패턴) ---- */
+  .pcard {
+    position: relative;
+    width: 42px; height: 60px;
+    background: #fdfdf8;
+    border-radius: 5px;
+    color: #16181d;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.05;
+    font-weight: 800;
+    box-shadow: 0 2px 5px rgba(0,0,0,.45);
+    flex-shrink: 0;
+  }
+  .pcard .rk { font-size: 17px; }
+  .pcard .st { font-size: 15px; }
+  .pcard.red { color: #c62828; }
+  .pcard.joker { color: var(--joker); }
+  .pcard.back {
+    background: repeating-linear-gradient(135deg, #5a3d8a 0 4px, #4a3172 4px 8px);
+    border: 2px solid #efe9dc;
+  }
+  .pcard.slot { background: rgba(255,255,255,.07); box-shadow: none; border: 1px dashed rgba(255,255,255,.15); }
+  .pcard .rep {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    text-align: center; font-size: 9px; font-weight: 700; line-height: 1.5;
+    color: #3c2a63; background: rgba(122,91,191,.2);
+    border-radius: 0 0 4px 4px;
+  }
+  #myHand .pcard { cursor: pointer; transition: transform .12s, box-shadow .12s; }
+  #myHand .pcard.sel { transform: translateY(-8px); box-shadow: 0 0 0 2px var(--accent), 0 5px 12px rgba(0,0,0,.5); }
+  #myHand .pcard.new { box-shadow: 0 0 0 2px #6fa8dc, 0 2px 5px rgba(0,0,0,.45); }
+  #aiHand .pcard, .meld .pcard { width: 34px; height: 48px; }
+  .meld .pcard .rk { font-size: 13px; }
+  .meld .pcard .st { font-size: 11px; }
+  .meld .pcard .rep { font-size: 8px; }
+
+  .bar {
+    display: flex;
+    gap: 20px;
+    margin-top: 14px;
+    background: var(--panel);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .bar b { color: var(--accent); }
+  .controls { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; justify-content: center; align-items: center; }
+  button {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background .15s;
+  }
+  button:hover { background: #2f3442; }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent); color: #1a1d24; border-color: var(--accent); font-weight: 700; }
+  button.primary:hover:not(:disabled) { background: #e0b160; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 12px; max-width: 720px; text-align: center; line-height: 1.7; }
+  .hint b { color: var(--accent); }
+  a.home { color: var(--muted); font-size: 12px; margin-top: 16px; text-decoration: none; }
+  a.home:hover { color: var(--accent); }
+  #overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,17,22,.97);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    text-align: center;
+    padding: 24px;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 22px; margin-bottom: 12px; }
+  #overlay p { color: var(--muted); font-size: 15px; line-height: 1.7; max-width: 480px; white-space: pre-line; }
+  #overlayBtns { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; min-width: 280px; }
+  @media (max-width: 600px) {
+    body { padding: 12px 8px; }
+    h1 { font-size: 18px; }
+    .sub { font-size: 12px; }
+    #status { font-size: 14px; }
+    #notice { font-size: 12px; }
+    .bar { gap: 10px; padding: 8px 12px; font-size: 12px; }
+    .controls { gap: 6px; }
+    button { padding: 8px 12px; font-size: 13px; }
+    .hint { font-size: 11px; }
+    .pcard { width: 36px; height: 52px; }
+    .pcard .rk { font-size: 14px; }
+    .pcard .st { font-size: 12px; }
+    #aiHand .pcard, .meld .pcard { width: 28px; height: 40px; }
+    .meld .pcard .rk { font-size: 11px; }
+    .meld .pcard .st { font-size: 9px; }
+    #centerRow { gap: 16px; }
+  }
+</style>
+</head>
+<body>
+  <h1>훌라 <span>HULA</span></h1>
+  <div class="sub">한국식 러미 카드게임 · 52장+조커 2 · 셋/런 등록 · 붙이기 · 조커 빼오기 · vs AI</div>
+
+  <div id="status"></div>
+  <div id="notice"></div>
+
+  <div id="table">
+    <div class="zone" id="aiZone">
+      <div class="zlabel">🤖 AI — 손패 <b id="aiCount"></b>장</div>
+      <div class="hand" id="aiHand"></div>
+      <div class="zlabel">AI 등록 멜드</div>
+      <div class="melds" id="aiMelds"></div>
+    </div>
+
+    <div id="centerRow">
+      <div class="pilebox" id="deckBox" title="덱에서 1장 뽑기">
+        <div class="pcard back"></div>
+        <div class="plabel">덱 <b id="deckCount"></b>장<span id="refillMark"></span></div>
+      </div>
+      <div class="pilebox" id="discardBox" title="뽑기 단계: 맨 위 카드 가져오기 · 행동 단계: 선택한 카드 버리기">
+        <div id="discardTop"></div>
+        <div class="plabel">버림더미 <b id="discardCount"></b>장</div>
+      </div>
+    </div>
+
+    <div class="zone" id="myZone">
+      <div class="zlabel">내 등록 멜드 <span class="tip">— 카드 1장 선택 후 멜드 클릭 = 붙이기 / 조커 빼오기</span></div>
+      <div class="melds" id="myMelds"></div>
+      <div class="zlabel">🙋 내 손패 <b id="myCount"></b>장 <span class="tip">— 클릭해서 선택</span></div>
+      <div class="hand" id="myHand"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="registerBtn" class="primary">등록 (3장+)</button>
+    <button id="discardBtn">버리기</button>
+    <button id="sortSuitBtn">정렬: 무늬</button>
+    <button id="sortRankBtn">정렬: 숫자</button>
+    <button id="newBtn">새 라운드</button>
+    <button id="resetScoreBtn">점수 초기화</button>
+  </div>
+
+  <div class="bar" id="scoreBar"></div>
+
+  <div class="hint">
+    차례: 덱/버림더미에서 <b>1장 뽑기</b> → (선택) <b>등록·붙이기·조커 빼오기</b> → <b>1장 버리기</b>. 손패를 다 털고 마지막 1장을 버리면 <b>훌라!</b> 승리.<br>
+    등록: 같은 숫자 3~4장(<b>셋</b>) 또는 같은 무늬 연속 3장 이상(<b>런</b>). 조커는 와일드 — 대신하는 카드가 멜드에 표시됩니다. A는 A-2-3 / Q-K-A 양쪽 가능(순환 K-A-2 불가).<br>
+    조커 빼오기: 멜드의 조커가 대신하는 <b>실제 카드</b>를 선택하고 그 멜드를 클릭하면 조커를 손으로 가져옵니다.<br>
+    간소화 룰: 첫 등록 합계 조건 없음 · 붙이기/조커 빼오기는 <b>내 등록 이후</b> 가능 · 버림더미 카드는 자유롭게 가져가되 같은 차례에 되버리기 금지 ·
+    등록/붙이기로 손패를 0장으로 만들 수 없음(마지막 1장은 버려야 승리) · 덱 소진 시 버림더미 리셔플 1회, <b>2회 소진이면 무승부</b>.<br>
+    점수: 승자가 상대 남은 손패 합계 획득 — A=15 · K/Q/J=10 · 조커=25 · 숫자 카드=액면
+  </div>
+  <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <div id="overlay">
+    <h2 id="overlayTitle"></h2>
+    <p id="overlayDesc"></p>
+    <div id="overlayBtns"></div>
+  </div>
+
+<script>
+// ==================== 훌라 코어 (순수 로직 — DOM 무의존, JXA 테스트 공유) ====================
+/* __HULA_CORE_START__ */
+function hulaCoreModule() {
+  'use strict';
+
+  // ---------- 카드 ----------
+  // 0~51: suit*13+rank (suit 0=♠ 1=♥ 2=♦ 3=♣ / rank 0=A 1=2 … 9=10 10=J 11=Q 12=K)
+  // 52, 53: 조커
+  const RANK_TXT = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+  const SUIT_SYM = ['♠','♥','♦','♣'];
+  const isJoker = c => c >= 52;
+  const suitOf = c => (c / 13) | 0;
+  const rankOf = c => c % 13;
+  const mkCard = (s, r) => s * 13 + r;
+  const cardText = c => isJoker(c) ? '🃏' : RANK_TXT[rankOf(c)] + SUIT_SYM[suitOf(c)];
+  // 테스트용: 'As' 'Th' 'Kc' 'J1'(조커1) 'J2'(조커2)
+  function parseCard(t) {
+    if (t === 'J1') return 52;
+    if (t === 'J2') return 53;
+    return 'shdc'.indexOf(t[t.length - 1]) * 13 + 'A23456789TJQK'.indexOf(t[0]);
+  }
+
+  // 점수: A=15, K/Q/J=10, 조커=25, 숫자=액면
+  function cardValue(c) {
+    if (isJoker(c)) return 25;
+    const r = rankOf(c);
+    if (r === 0) return 15;
+    if (r >= 10) return 10;
+    return r + 1;
+  }
+  const handScore = h => h.reduce((a, c) => a + cardValue(c), 0);
+
+  // ---------- RNG / 셔플 ----------
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let x = t;
+      x = Math.imul(x ^ (x >>> 15), x | 1);
+      x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+      return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function shuffle(a, rng) {
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = (rng() * (i + 1)) | 0;
+      const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+
+  // ---------- 멜드 판정 ----------
+  // 런 값: A=1 또는 14, 2~K = 2~13. 순환(K-A-2) 불가.
+  function runValOptions(c) { const r = rankOf(c); return r === 0 ? [1, 14] : [r + 1]; }
+  function runDist(a, b) {
+    let best = 99;
+    for (const x of runValOptions(a)) for (const y of runValOptions(b)) {
+      const d = Math.abs(x - y);
+      if (d < best) best = d;
+    }
+    return best;
+  }
+
+  // 셋: 같은 숫자 3~4장, 무늬 중복 불가. 조커는 남은 무늬 중 하나로 명시 배정.
+  // 유효하면 {type:'set', rank, slots:[{c,rep}]}, 아니면 null
+  function validSet(cards) {
+    if (cards.length < 3 || cards.length > 4) return null;
+    if (new Set(cards).size !== cards.length) return null;
+    const jokers = cards.filter(isJoker);
+    const nats = cards.filter(c => !isJoker(c));
+    if (nats.length < 1) return null;
+    const rank = rankOf(nats[0]);
+    if (!nats.every(c => rankOf(c) === rank)) return null;
+    const used = new Set(nats.map(suitOf));
+    if (used.size !== nats.length) return null;
+    const free = [0, 1, 2, 3].filter(s => !used.has(s));
+    if (jokers.length > free.length) return null;
+    const slots = nats.map(c => ({ c, rep: c }));
+    jokers.forEach((j, i) => slots.push({ c: j, rep: mkCard(free[i], rank) }));
+    slots.sort((a, b) => suitOf(a.rep) - suitOf(b.rep));
+    return { type: 'set', rank, slots };
+  }
+
+  // 런: 같은 무늬 연속 3장+. 조커는 빈 자리(우선) 또는 끝 연장에 명시 배정.
+  // 유효하면 {type:'run', suit, lo, hi, slots}, 아니면 null
+  function validRun(cards) {
+    if (cards.length < 3) return null;
+    if (new Set(cards).size !== cards.length) return null;
+    const jokers = cards.filter(isJoker);
+    const nats = cards.filter(c => !isJoker(c));
+    if (nats.length < 1) return null;
+    const suit = suitOf(nats[0]);
+    if (!nats.every(c => suitOf(c) === suit)) return null;
+    const ranks = nats.map(rankOf);
+    if (new Set(ranks).size !== ranks.length) return null;
+    const hasAce = ranks.indexOf(0) >= 0;
+    const tries = hasAce ? [1, 14] : [0];
+    for (const aceVal of tries) {
+      const vals = ranks.map(r => r === 0 ? aceVal : r + 1).sort((a, b) => a - b);
+      const lo0 = vals[0], hi0 = vals[vals.length - 1];
+      const gaps = (hi0 - lo0 + 1) - vals.length;
+      if (gaps < 0 || gaps > jokers.length) continue;
+      const left = jokers.length - gaps;
+      const hiAdd = Math.min(left, 14 - hi0);
+      const loAdd = left - hiAdd;
+      if (lo0 - loAdd < 1) continue;
+      const lo = lo0 - loAdd, hi = hi0 + hiAdd;
+      if (lo === 1 && hi === 14) continue;   // A를 양끝에 이중 표현 불가
+      const byVal = new Map();
+      nats.forEach(c => byVal.set(rankOf(c) === 0 ? aceVal : rankOf(c) + 1, c));
+      let ji = 0;
+      const slots = [];
+      for (let v = lo; v <= hi; v++) {
+        if (byVal.has(v)) slots.push({ c: byVal.get(v), rep: byVal.get(v) });
+        else slots.push({ c: jokers[ji++], rep: mkCard(suit, v === 14 ? 0 : v - 1) });
+      }
+      return { type: 'run', suit, lo, hi, slots };
+    }
+    return null;
+  }
+
+  const validMeld = cards => validSet(cards) || validRun(cards);
+
+  // ---------- 라운드 상태 ----------
+  function newRound(rng, starter) {
+    const deck = shuffle(Array.from({ length: 54 }, (_, i) => i), rng);
+    const hands = [[], []];
+    for (let i = 0; i < 7; i++) { hands[0].push(deck.pop()); hands[1].push(deck.pop()); }
+    return {
+      hands, deck,
+      discard: [deck.pop()],
+      melds: [],               // {owner, type, ..., slots:[{c,rep}]}
+      turn: starter ? 1 : 0,
+      phase: 'draw',           // 'draw' | 'act' | 'end'
+      refills: 0,              // 버림더미 리셔플 횟수 (최대 1)
+      over: false,
+      winner: -2,              // -2 진행중 / -1 무승부 / 0·1 승자
+      reason: '',
+      score: 0,                // 훌라 시 승자 득점
+      lastDraw: null,          // {from:'deck'|'discard', c}
+      discardHist: [[], []],   // 각자 버린 카드 히스토리
+      pickedHist: [[], []],    // 각자 버림더미에서 가져간 카드
+      turnCount: 0,
+    };
+  }
+
+  function drawFromDeck(state, rng) {
+    rng = rng || Math.random;
+    if (state.over || state.phase !== 'draw') return { ok: false, msg: '지금은 뽑을 수 없습니다' };
+    let refilled = false;
+    if (state.deck.length === 0) {
+      if (state.refills === 0 && state.discard.length > 1) {
+        // 1회차 소진: 버림더미 맨 위만 남기고 섞어 새 덱 구성
+        const top = state.discard.pop();
+        state.deck = shuffle(state.discard.splice(0, state.discard.length), rng);
+        state.discard.push(top);
+        state.refills = 1;
+        refilled = true;
+      } else {
+        // 2회차 소진(또는 리셔플 불가) → 무승부
+        state.over = true; state.winner = -1; state.reason = 'deck'; state.phase = 'end'; state.score = 0;
+        return { ok: true, ended: true };
+      }
+    }
+    const c = state.deck.pop();
+    state.hands[state.turn].push(c);
+    state.lastDraw = { from: 'deck', c };
+    state.phase = 'act';
+    return { ok: true, c, refilled };
+  }
+
+  function drawFromDiscard(state) {
+    if (state.over || state.phase !== 'draw') return { ok: false, msg: '지금은 뽑을 수 없습니다' };
+    if (state.discard.length === 0) return { ok: false, msg: '버림더미가 비었습니다' };
+    const c = state.discard.pop();
+    state.hands[state.turn].push(c);
+    state.pickedHist[state.turn].push(c);
+    state.lastDraw = { from: 'discard', c };
+    state.phase = 'act';
+    return { ok: true, c };
+  }
+
+  const hasOwnMeld = (state, p) => state.melds.some(m => m.owner === p);
+
+  function removeCards(hand, cards) {
+    for (const c of cards) hand.splice(hand.indexOf(c), 1);
+  }
+
+  // 등록: 손패의 카드로 새 멜드 공개. 첫 등록 합계 조건 없음(간소화).
+  // 버릴 카드 1장은 반드시 남겨야 한다.
+  function register(state, cards) {
+    if (state.over || state.phase !== 'act') return { ok: false, msg: '카드를 뽑은 뒤에 등록할 수 있습니다' };
+    if (new Set(cards).size !== cards.length) return { ok: false, msg: '중복 카드' };
+    const hand = state.hands[state.turn];
+    if (!cards.every(c => hand.indexOf(c) >= 0)) return { ok: false, msg: '손에 없는 카드가 있습니다' };
+    if (hand.length - cards.length < 1) return { ok: false, msg: '버릴 카드 1장은 남겨야 합니다' };
+    const meld = validMeld(cards);
+    if (!meld) return { ok: false, msg: '유효한 셋(같은 숫자 3~4장)/런(같은 무늬 연속 3장+)이 아닙니다' };
+    meld.owner = state.turn;
+    state.melds.push(meld);
+    removeCards(hand, cards);
+    return { ok: true, meld };
+  }
+
+  // 붙이기 가능 여부: 가능하면 {slot:{c,rep}, pos:'set'|'hi'|'lo'}, 아니면 null
+  function attachInfo(meld, card) {
+    if (meld.type === 'set') {
+      if (meld.slots.length >= 4) return null;
+      const used = new Set(meld.slots.map(sl => suitOf(sl.rep)));
+      if (isJoker(card)) {
+        const free = [0, 1, 2, 3].filter(s => !used.has(s));
+        if (!free.length) return null;
+        return { slot: { c: card, rep: mkCard(free[0], meld.rank) }, pos: 'set' };
+      }
+      if (rankOf(card) !== meld.rank || used.has(suitOf(card))) return null;
+      return { slot: { c: card, rep: card }, pos: 'set' };
+    }
+    // run
+    const canHi = meld.hi + 1 <= 14 && !(meld.lo === 1 && meld.hi + 1 === 14);
+    const canLo = meld.lo - 1 >= 1 && !(meld.lo - 1 === 1 && meld.hi === 14);
+    if (isJoker(card)) {
+      if (canHi) return { slot: { c: card, rep: mkCard(meld.suit, meld.hi + 1 === 14 ? 0 : meld.hi) }, pos: 'hi' };
+      if (canLo) return { slot: { c: card, rep: mkCard(meld.suit, meld.lo - 2) }, pos: 'lo' };
+      return null;
+    }
+    if (suitOf(card) !== meld.suit) return null;
+    for (const v of runValOptions(card)) {
+      if (v === meld.hi + 1 && canHi) return { slot: { c: card, rep: card }, pos: 'hi' };
+      if (v === meld.lo - 1 && canLo) return { slot: { c: card, rep: card }, pos: 'lo' };
+    }
+    return null;
+  }
+
+  // 붙이기: 등록된 멜드(내 것/상대 것 무관)에 카드 추가. 내 등록이 하나 이상 있어야 가능.
+  function attach(state, card, mi) {
+    if (state.over || state.phase !== 'act') return { ok: false, msg: '카드를 뽑은 뒤에 붙일 수 있습니다' };
+    const p = state.turn, hand = state.hands[p];
+    if (hand.indexOf(card) < 0) return { ok: false, msg: '손에 없는 카드입니다' };
+    if (!hasOwnMeld(state, p)) return { ok: false, msg: '먼저 내 멜드를 등록해야 붙일 수 있습니다' };
+    if (hand.length <= 1) return { ok: false, msg: '버릴 카드 1장은 남겨야 합니다' };
+    const meld = state.melds[mi];
+    if (!meld) return { ok: false, msg: '멜드가 없습니다' };
+    const info = attachInfo(meld, card);
+    if (!info) return { ok: false, msg: '이 멜드에는 붙일 수 없습니다' };
+    if (info.pos === 'set') {
+      meld.slots.push(info.slot);
+      meld.slots.sort((a, b) => suitOf(a.rep) - suitOf(b.rep));
+    } else if (info.pos === 'hi') {
+      meld.slots.push(info.slot);
+      meld.hi++;
+    } else {
+      meld.slots.unshift(info.slot);
+      meld.lo--;
+    }
+    removeCards(hand, [card]);
+    return { ok: true, info };
+  }
+
+  // 조커 빼오기 대상: 멜드의 조커가 대신하는 실제 카드를 손에 들고 있을 때
+  function jokerSwapTargets(state, p) {
+    const out = [];
+    if (!hasOwnMeld(state, p)) return out;
+    const hand = state.hands[p];
+    state.melds.forEach((m, mi) => m.slots.forEach((sl, si) => {
+      if (isJoker(sl.c) && hand.indexOf(sl.rep) >= 0) out.push({ mi, si, need: sl.rep });
+    }));
+    return out;
+  }
+
+  // 조커 빼오기: 정확한 대체 카드를 넣고 조커를 손으로 가져온다 (손패 수 불변)
+  function jokerSwap(state, mi, si) {
+    if (state.over || state.phase !== 'act') return { ok: false, msg: '카드를 뽑은 뒤에 할 수 있습니다' };
+    const p = state.turn, hand = state.hands[p];
+    if (!hasOwnMeld(state, p)) return { ok: false, msg: '먼저 내 멜드를 등록해야 합니다' };
+    const meld = state.melds[mi];
+    const slot = meld && meld.slots[si];
+    if (!slot || !isJoker(slot.c)) return { ok: false, msg: '조커 자리가 아닙니다' };
+    if (hand.indexOf(slot.rep) < 0) return { ok: false, msg: '조커가 대신하는 실제 카드(' + cardText(slot.rep) + ')가 손에 없습니다' };
+    const joker = slot.c;
+    removeCards(hand, [slot.rep]);
+    slot.c = slot.rep;
+    hand.push(joker);
+    return { ok: true, joker };
+  }
+
+  // 버리기: 차례 종료. 손패 0장이 되면 훌라(승리).
+  // 표준 룰: 같은 차례에 버림더미에서 가져온 카드는 그대로 되버릴 수 없다(마지막 1장 예외).
+  function discardCard(state, card) {
+    if (state.over || state.phase !== 'act') return { ok: false, msg: '먼저 카드를 뽑으세요' };
+    const p = state.turn, hand = state.hands[p];
+    const i = hand.indexOf(card);
+    if (i < 0) return { ok: false, msg: '손에 없는 카드입니다' };
+    if (state.lastDraw && state.lastDraw.from === 'discard' && state.lastDraw.c === card && hand.length > 1)
+      return { ok: false, msg: '방금 버림더미에서 가져온 카드는 이번 차례에 버릴 수 없습니다' };
+    hand.splice(i, 1);
+    state.discard.push(card);
+    state.discardHist[p].push(card);
+    state.turnCount++;
+    if (hand.length === 0) {
+      state.over = true; state.winner = p; state.reason = 'hula'; state.phase = 'end';
+      state.score = handScore(state.hands[1 - p]);
+    } else {
+      state.turn = 1 - p;
+      state.phase = 'draw';
+      state.lastDraw = null;
+    }
+    return { ok: true };
+  }
+
+  // 전체 카드(물리) 수집 — 보존 검증용 (54장이어야 함)
+  function countAllCards(state) {
+    const all = state.deck.concat(state.discard, state.hands[0], state.hands[1]);
+    state.melds.forEach(m => m.slots.forEach(sl => all.push(sl.c)));
+    return all;
+  }
+
+  // ---------- AI ----------
+  // 손패에서 등록 가능한 멜드 후보 (자연 카드 2장 이상, 조커 최대 2장)
+  function findRegisterCandidates(hand) {
+    const jokers = hand.filter(isJoker);
+    const nats = hand.filter(c => !isJoker(c));
+    const out = [];
+    // 셋 후보
+    for (let r = 0; r < 13; r++) {
+      const same = nats.filter(c => rankOf(c) === r);
+      if (same.length >= 3) {
+        const m = validSet(same);
+        if (m) out.push({ cards: same.slice(), meld: m, score: same.length * 10 + same.length });
+      }
+      if (same.length === 2 && jokers.length >= 1) {
+        const cards = same.concat([jokers[0]]);
+        const m = validSet(cards);
+        if (m) out.push({ cards, meld: m, score: 2 * 10 - 6 + 3 });
+      }
+    }
+    // 런 후보: 무늬별 창(window) 탐색
+    for (let s = 0; s < 4; s++) {
+      const sc = nats.filter(c => suitOf(c) === s);
+      if (sc.length < 2) continue;
+      for (let a = 1; a <= 12; a++) {
+        for (let len = 3; len <= 8 && a + len - 1 <= 14; len++) {
+          const b = a + len - 1;
+          if (a === 1 && b === 14) continue;
+          const avail = sc.slice();
+          const used = [];
+          let jneed = 0;
+          for (let v = a; v <= b; v++) {
+            const i = avail.findIndex(c => runValOptions(c).indexOf(v) >= 0);
+            if (i >= 0) used.push(avail.splice(i, 1)[0]);
+            else jneed++;
+          }
+          if (used.length < 2 || jneed > 2 || jneed > jokers.length) continue;
+          const cards = used.concat(jokers.slice(0, jneed));
+          const m = validRun(cards);
+          if (m) out.push({ cards, meld: m, score: used.length * 10 - jneed * 6 + cards.length });
+        }
+      }
+    }
+    return out;
+  }
+
+  // 버림더미 맨 위 카드가 즉시 유용한가 (즉시 등록/붙이기/조커 빼오기 가능 → 진행 보장)
+  function discardTopUseful(state, p, top) {
+    if (isJoker(top)) return true;
+    const hand = state.hands[p];
+    const h2 = hand.concat([top]);
+    const cands = findRegisterCandidates(h2).filter(x => x.cards.indexOf(top) >= 0 && h2.length - x.cards.length >= 1);
+    if (cands.length) return true;
+    if (hasOwnMeld(state, p)) {
+      for (const m of state.melds) if (attachInfo(m, top)) return true;
+      for (const m of state.melds) for (const sl of m.slots)
+        if (isJoker(sl.c) && sl.rep === top) return true;
+    }
+    return false;
+  }
+
+  function aiSwapAll(state, p, log) {
+    for (;;) {
+      const ts = jokerSwapTargets(state, p);
+      if (!ts.length) return;
+      const r = jokerSwap(state, ts[0].mi, ts[0].si);
+      if (!r.ok) return;
+      log.push({ t: 'swap', need: ts[0].need });
+    }
+  }
+
+  function aiRegisterAll(state, p, log) {
+    for (;;) {
+      const hand = state.hands[p];
+      const cands = findRegisterCandidates(hand)
+        .filter(x => hand.length - x.cards.length >= 1)
+        .sort((x, y) => y.score - x.score);
+      if (!cands.length) return;
+      const r = register(state, cands[0].cards);
+      if (!r.ok) return;
+      log.push({ t: 'register', reps: r.meld.slots.map(sl => sl.rep) });
+    }
+  }
+
+  function aiAttachAll(state, p, log) {
+    if (!hasOwnMeld(state, p)) return;
+    let again = true;
+    while (again) {
+      again = false;
+      const hand = state.hands[p];
+      if (hand.length <= 1) return;
+      for (const c of hand) {
+        if (isJoker(c) && hand.length > 3) continue;   // 조커는 막판에만 붙임
+        for (let mi = 0; mi < state.melds.length; mi++) {
+          if (attachInfo(state.melds[mi], c)) {
+            const r = attach(state, c, mi);
+            if (r.ok) { log.push({ t: 'attach', c, mi }); again = true; }
+            break;
+          }
+        }
+        if (again) break;
+      }
+    }
+  }
+
+  // 카드 유지 가치: 내 부분조합 가치 + 상대 유용성 위험(상대 픽업/버림 히스토리 기반) - 점수 부담
+  function keepScore(state, p, c) {
+    if (isJoker(c)) return 1000;
+    const hand = state.hands[p];
+    const oppPicked = state.pickedHist[1 - p];
+    const oppDisc = state.discardHist[1 - p];
+    const r = rankOf(c), s = suitOf(c);
+    let v = 0;
+    for (const o of hand) {
+      if (o === c || isJoker(o)) continue;
+      if (rankOf(o) === r) v += 6;
+      if (suitOf(o) === s) {
+        const d = runDist(o, c);
+        if (d === 1) v += 6;
+        else if (d === 2) v += 3;
+      }
+    }
+    if (v > 0 && hand.some(isJoker)) v += 2;
+    let danger = 0;
+    for (const o of oppPicked) {
+      if (isJoker(o)) continue;
+      if (rankOf(o) === r) danger += 5;
+      if (suitOf(o) === s && runDist(o, c) <= 2) danger += 4;
+    }
+    for (const o of oppDisc) {
+      if (isJoker(o)) continue;
+      if (rankOf(o) === r) danger -= 3;
+      if (suitOf(o) === s && runDist(o, c) <= 1) danger -= 2;
+    }
+    for (const m of state.melds) if (attachInfo(m, c)) danger += 3;
+    return v + Math.max(0, danger) * 2 - cardValue(c) * 0.05;
+  }
+
+  function chooseDiscard(state, p) {
+    const hand = state.hands[p];
+    const banned = (state.lastDraw && state.lastDraw.from === 'discard' && hand.length > 1) ? state.lastDraw.c : -1;
+    let best = -1, bestScore = Infinity;
+    for (const c of hand) {
+      if (c === banned) continue;
+      const ks = keepScore(state, p, c);
+      if (ks < bestScore) { bestScore = ks; best = c; }
+    }
+    return best;
+  }
+
+  // AI 한 차례 전체 수행. 행동 로그 배열 반환.
+  function aiTurn(state, rng) {
+    if (state.over || state.phase !== 'draw') return [];
+    const log = [];
+    const p = state.turn;
+    const top = state.discard.length ? state.discard[state.discard.length - 1] : undefined;
+    if (top !== undefined && discardTopUseful(state, p, top)) {
+      drawFromDiscard(state);
+      log.push({ t: 'draw', from: 'discard', c: top });
+    } else {
+      const r = drawFromDeck(state, rng);
+      if (r.ended || state.over) { log.push({ t: 'deckout' }); return log; }
+      if (r.refilled) log.push({ t: 'refill' });
+      log.push({ t: 'draw', from: 'deck' });
+    }
+    aiSwapAll(state, p, log);      // 조커 회수 (내 등록 있어야 동작)
+    aiRegisterAll(state, p, log);  // 등록
+    aiSwapAll(state, p, log);      // 등록 후 회수 기회 재확인
+    aiRegisterAll(state, p, log);  // 회수한 조커로 추가 등록
+    aiAttachAll(state, p, log);    // 붙이기
+    const c = chooseDiscard(state, p);
+    discardCard(state, c);
+    log.push({ t: 'discard', c });
+    if (state.over && state.winner === p) log.push({ t: 'hula', winner: p });
+    return log;
+  }
+
+  return {
+    RANK_TXT, SUIT_SYM, isJoker, suitOf, rankOf, mkCard, cardText, parseCard,
+    cardValue, handScore, mulberry32, shuffle,
+    validSet, validRun, validMeld,
+    newRound, drawFromDeck, drawFromDiscard,
+    register, attach, attachInfo, jokerSwapTargets, jokerSwap, discardCard,
+    hasOwnMeld, countAllCards, findRegisterCandidates, aiTurn,
+  };
+}
+/* __HULA_CORE_END__ */
+
+// ==================== UI ====================
+const core = hulaCoreModule();
+const $id = id => document.getElementById(id);
+
+let S = null;              // 현재 라운드 상태
+let sel = new Set();       // 선택된 손패 카드
+let roundStarter = 0;      // 이번 라운드 선(0=나, 1=AI)
+let totals = { me: 0, ai: 0, round: 1 };
+try {
+  const t = JSON.parse(localStorage.getItem('hula_totals') || 'null');
+  if (t && typeof t.me === 'number' && typeof t.ai === 'number') totals = t;
+} catch (e) {}
+function saveTotals() { try { localStorage.setItem('hula_totals', JSON.stringify(totals)); } catch (e) {} }
+
+function setNotice(msg) { $id('notice').textContent = msg || ''; }
+
+function cardHTML(c, cls, data, rep) {
+  if (core.isJoker(c)) {
+    const badge = (rep !== undefined && rep !== null && rep !== c)
+      ? `<span class="rep">=${core.cardText(rep)}</span>` : '';
+    return `<div class="pcard joker${cls || ''}"${data || ''}><span class="rk">JK</span><span class="st">🃏</span>${badge}</div>`;
+  }
+  const r = core.rankOf(c), s = core.suitOf(c);
+  const red = (s === 1 || s === 2) ? ' red' : '';
+  return `<div class="pcard${red}${cls || ''}"${data || ''}><span class="rk">${core.RANK_TXT[r]}</span><span class="st">${core.SUIT_SYM[s]}</span></div>`;
+}
+
+function renderMelds(elId, owner) {
+  const hot = S.turn === 0 && S.phase === 'act' && !S.over && sel.size === 1;
+  let html = '';
+  S.melds.forEach((m, mi) => {
+    if (m.owner !== owner) return;
+    const cards = m.slots.map(sl => cardHTML(sl.c, '', '', sl.rep)).join('');
+    html += `<div class="meld${hot ? ' hot' : ''}" data-mi="${mi}">${cards}</div>`;
+  });
+  $id(elId).innerHTML = html || '<span class="none">아직 등록 없음</span>';
+}
+
+function renderAll() {
+  if (!S) return;
+  let stat;
+  if (S.over) {
+    stat = S.winner === 0 ? '🎉 라운드 종료 — 훌라! 내 승리'
+         : S.winner === 1 ? '라운드 종료 — AI 훌라'
+         : '라운드 종료 — 무승부 (덱 2회 소진)';
+  } else if (S.turn === 1) {
+    stat = '🤖 AI 차례…';
+  } else {
+    stat = S.phase === 'draw'
+      ? '🙋 내 차례 — [뽑기] 덱 또는 버림더미를 클릭해 1장 가져오기'
+      : '🙋 내 차례 — [등록/붙이기 모드] 등록·붙이기·조커 빼오기 후 1장 버리기';
+  }
+  $id('status').textContent = stat;
+
+  $id('aiCount').textContent = S.hands[1].length;
+  $id('aiHand').innerHTML = '<div class="pcard back"></div>'.repeat(S.hands[1].length);
+  renderMelds('aiMelds', 1);
+  renderMelds('myMelds', 0);
+
+  $id('deckCount').textContent = S.deck.length;
+  $id('refillMark').textContent = S.refills ? ' · 리셔플 1회 사용' : '';
+  $id('discardCount').textContent = S.discard.length;
+  $id('discardTop').innerHTML = S.discard.length
+    ? cardHTML(S.discard[S.discard.length - 1])
+    : '<div class="pcard slot"></div>';
+
+  $id('myCount').textContent = S.hands[0].length;
+  $id('myHand').innerHTML = S.hands[0].map(c => {
+    let cls = '';
+    if (sel.has(c)) cls += ' sel';
+    if (!S.over && S.turn === 0 && S.phase === 'act' && S.lastDraw && S.lastDraw.c === c) cls += ' new';
+    return cardHTML(c, cls, ` data-c="${c}"`);
+  }).join('');
+
+  $id('aiZone').classList.toggle('active', !S.over && S.turn === 1);
+  $id('myZone').classList.toggle('active', !S.over && S.turn === 0);
+
+  const myAct = !S.over && S.turn === 0 && S.phase === 'act';
+  $id('registerBtn').disabled = !(myAct && sel.size >= 3);   // 런은 5장+ 가능 (셋 상한은 코어에서 검증)
+  $id('discardBtn').disabled = !(myAct && sel.size === 1);
+
+  $id('scoreBar').innerHTML =
+    `<span>🙋 나 <b>${totals.me}</b>점</span>` +
+    `<span>🤖 AI <b>${totals.ai}</b>점</span>` +
+    `<span>라운드 <b>${totals.round}</b></span>` +
+    `<span>이번 판 선: <b>${roundStarter === 0 ? '나' : 'AI'}</b></span>`;
+}
+
+// ---- 오버레이 ----
+function showOverlay(title, desc, buttons) {
+  $id('overlayTitle').textContent = title;
+  $id('overlayDesc').textContent = desc;
+  const wrap = $id('overlayBtns');
+  wrap.innerHTML = '';
+  buttons.forEach(([label, cb], i) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    if (i === 0) b.className = 'primary';
+    b.addEventListener('click', cb);
+    wrap.appendChild(b);
+  });
+  $id('overlay').classList.add('show');
+}
+function hideOverlay() { $id('overlay').classList.remove('show'); }
+
+// ---- 라운드 진행 ----
+function newRound() {
+  S = core.newRound(Math.random, roundStarter);
+  sel.clear();
+  hideOverlay();
+  setNotice(roundStarter === 1 ? 'AI가 선입니다.' : '내가 선입니다 — 덱 또는 버림더미에서 1장 뽑으세요.');
+  renderAll();
+  if (S.turn === 1) scheduleAI();
+}
+
+function endRound() {
+  let title, desc;
+  if (S.winner === 0) {
+    totals.me += S.score;
+    title = '훌라! 🎉 승리';
+    desc = `AI 남은 손패: ${S.hands[1].map(core.cardText).join(' ')}\n합계 ${S.score}점 획득!`;
+  } else if (S.winner === 1) {
+    totals.ai += S.score;
+    title = 'AI 훌라 — 패배';
+    desc = `내 남은 손패: ${S.hands[0].map(core.cardText).join(' ')}\n합계 ${S.score}점을 AI가 획득`;
+  } else {
+    title = '무승부';
+    desc = '덱이 두 번 소진되어 무승부입니다. 점수 변동 없음.';
+  }
+  totals.round += 1;
+  saveTotals();
+  desc += `\n\n누적 점수 — 나 ${totals.me}점 · AI ${totals.ai}점`;
+  renderAll();
+  showOverlay(title, desc, [
+    ['다음 라운드', () => { roundStarter = 1 - roundStarter; newRound(); }],
+  ]);
+}
+
+function describeAI(log) {
+  const parts = [];
+  for (const e of log) {
+    if (e.t === 'draw') parts.push(e.from === 'deck' ? '덱에서 1장' : `버림더미에서 ${core.cardText(e.c)} 회수`);
+    else if (e.t === 'refill') parts.push('덱 소진 — 버림더미 리셔플');
+    else if (e.t === 'swap') parts.push(`조커 빼오기(${core.cardText(e.need)} 투입)`);
+    else if (e.t === 'register') parts.push(`등록 [${e.reps.map(core.cardText).join(' ')}]`);
+    else if (e.t === 'attach') parts.push(`붙이기 ${core.cardText(e.c)}`);
+    else if (e.t === 'discard') parts.push(`${core.cardText(e.c)} 버림`);
+    else if (e.t === 'deckout') parts.push('덱 2회 소진 — 무승부');
+    else if (e.t === 'hula') parts.push('훌라!');
+  }
+  return 'AI: ' + parts.join(' → ');
+}
+
+function scheduleAI() {
+  setTimeout(() => {
+    if (!S || S.over || S.turn !== 1) return;
+    const log = core.aiTurn(S, Math.random);
+    setNotice(describeAI(log));
+    renderAll();
+    if (S.over) endRound();
+  }, 900);
+}
+
+// ---- 사람 입력 ----
+$id('myHand').addEventListener('click', e => {
+  const el = e.target.closest('.pcard');
+  if (!el || el.dataset.c === undefined) return;
+  const c = +el.dataset.c;
+  if (sel.has(c)) sel.delete(c); else sel.add(c);
+  renderAll();
+});
+
+$id('deckBox').addEventListener('click', () => {
+  if (!S || S.over || S.turn !== 0) return;
+  if (S.phase !== 'draw') { setNotice('이미 뽑았습니다 — 등록/붙이기 후 1장을 버리세요.'); return; }
+  const r = core.drawFromDeck(S, Math.random);
+  if (S.over) { renderAll(); endRound(); return; }
+  let msg = '';
+  if (r.refilled) msg = '덱 소진 — 버림더미를 섞어 새 덱을 만들었습니다 (다음 소진 시 무승부). ';
+  setNotice(msg + `덱에서 ${core.cardText(r.c)}를 뽑았습니다.`);
+  renderAll();
+});
+
+$id('discardBox').addEventListener('click', () => {
+  if (!S || S.over || S.turn !== 0) return;
+  if (S.phase === 'draw') {
+    const r = core.drawFromDiscard(S);
+    if (r.ok) setNotice(`버림더미에서 ${core.cardText(r.c)}를 가져왔습니다. (이번 차례에 되버리기 불가)`);
+    else setNotice(r.msg || '');
+    renderAll();
+  } else if (sel.size === 1) {
+    discardSelected();
+  } else {
+    setNotice('버릴 카드 1장을 선택한 뒤 버림더미를 클릭하세요.');
+  }
+});
+
+function meldClick(e) {
+  const el = e.target.closest('.meld');
+  if (!el || el.dataset.mi === undefined) return;
+  if (!S || S.over || S.turn !== 0 || S.phase !== 'act') { setNotice('붙이기는 내 차례에 카드를 뽑은 뒤 가능합니다.'); return; }
+  if (sel.size !== 1) { setNotice('붙이기/조커 빼오기: 손패에서 카드 1장만 선택한 뒤 멜드를 클릭하세요.'); return; }
+  const mi = +el.dataset.mi;
+  const card = sel.values().next().value;
+  const meld = S.melds[mi];
+  // 조커 빼오기 우선 (정확한 대체 카드일 때)
+  const si = meld.slots.findIndex(sl => core.isJoker(sl.c) && sl.rep === card);
+  if (si >= 0) {
+    const r = core.jokerSwap(S, mi, si);
+    if (r.ok) { sel.clear(); setNotice(`조커 빼오기 성공 — ${core.cardText(card)}를 넣고 🃏를 가져왔습니다.`); }
+    else setNotice(r.msg || '조커 빼오기 실패');
+    renderAll();
+    return;
+  }
+  const r = core.attach(S, card, mi);
+  if (r.ok) { sel.clear(); setNotice(`${core.cardText(card)} 붙이기 완료.`); }
+  else setNotice(r.msg || '붙일 수 없습니다.');
+  renderAll();
+}
+$id('myMelds').addEventListener('click', meldClick);
+$id('aiMelds').addEventListener('click', meldClick);
+
+$id('registerBtn').addEventListener('click', () => {
+  if (!S || S.over || S.turn !== 0 || S.phase !== 'act') { setNotice('등록은 내 차례에 카드를 뽑은 뒤 가능합니다.'); return; }
+  const cards = Array.from(sel);
+  const r = core.register(S, cards);
+  if (r.ok) { sel.clear(); setNotice(`등록 완료: ${r.meld.slots.map(sl => core.cardText(sl.rep)).join(' ')}`); }
+  else setNotice(r.msg || '등록 실패');
+  renderAll();
+});
+
+function discardSelected() {
+  if (!S || S.over || S.turn !== 0 || S.phase !== 'act') { setNotice('버리기는 카드를 뽑은 뒤 가능합니다.'); return; }
+  if (sel.size !== 1) { setNotice('버릴 카드 1장을 선택하세요.'); return; }
+  const c = sel.values().next().value;
+  const r = core.discardCard(S, c);
+  if (!r.ok) { setNotice(r.msg || '버릴 수 없습니다'); renderAll(); return; }
+  sel.clear();
+  renderAll();
+  if (S.over) { endRound(); return; }
+  setNotice('');
+  scheduleAI();
+}
+$id('discardBtn').addEventListener('click', discardSelected);
+
+function sortHand(mode) {
+  if (!S) return;
+  S.hands[0].sort((a, b) => {
+    const ja = core.isJoker(a) ? 1 : 0, jb = core.isJoker(b) ? 1 : 0;
+    if (ja !== jb) return ja - jb;
+    if (ja) return a - b;
+    if (mode === 'suit') return (core.suitOf(a) - core.suitOf(b)) || (core.rankOf(a) - core.rankOf(b));
+    return (core.rankOf(a) - core.rankOf(b)) || (core.suitOf(a) - core.suitOf(b));
+  });
+  renderAll();
+}
+$id('sortSuitBtn').addEventListener('click', () => sortHand('suit'));
+$id('sortRankBtn').addEventListener('click', () => sortHand('rank'));
+
+$id('newBtn').addEventListener('click', () => {
+  showOverlay('새 라운드', '현재 판을 버리고 다시 섞어 시작할까요? (점수 변동 없음)', [
+    ['다시 섞기', () => newRound()],
+    ['계속하기', () => hideOverlay()],
+  ]);
+});
+
+$id('resetScoreBtn').addEventListener('click', () => {
+  showOverlay('점수 초기화', `누적 점수(나 ${totals.me} · AI ${totals.ai})와 라운드 수를 초기화할까요?`, [
+    ['초기화', () => { totals = { me: 0, ai: 0, round: 1 }; saveTotals(); hideOverlay(); renderAll(); }],
+    ['취소', () => hideOverlay()],
+  ]);
+});
+
+newRound();
+</script>
+</body>
+</html>

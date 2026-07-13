@@ -1,0 +1,1902 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>바투 프로토타입 — 원작 규칙판</title>
+<style>
+  :root {
+    --bg: #1a1d24;
+    --panel: #242832;
+    --text: #e8e6e0;
+    --muted: #9a9788;
+    --accent: #d4a24e;
+    --hidden: #8b5cf6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Apple SD Gothic Neo", "Pretendard", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px 16px;
+  }
+  h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  #status {
+    margin: 14px 0 4px;
+    font-size: 16px;
+    font-weight: 600;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+  }
+  #notice {
+    min-height: 20px;
+    font-size: 13px;
+    color: var(--accent);
+    margin-bottom: 8px;
+    text-align: center;
+    max-width: 560px;
+  }
+  .turn-dot {
+    width: 16px; height: 16px; border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 1px 3px rgba(0,0,0,.5);
+    flex-shrink: 0;
+  }
+  .turn-dot.black { background: radial-gradient(circle at 35% 35%, #555, #000); }
+  .turn-dot.white { background: radial-gradient(circle at 35% 35%, #fff, #bbb); }
+  #boardWrap { position: relative; }
+  canvas {
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.45);
+    cursor: pointer;
+    touch-action: manipulation;
+    max-width: 100%;
+    display: block;
+  }
+  #boardWrap.hiddenMode canvas { box-shadow: 0 0 0 3px var(--hidden), 0 8px 32px rgba(0,0,0,.45); }
+  #overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,17,22,.97);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    text-align: center;
+    padding: 24px;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 22px; margin-bottom: 12px; }
+  #overlay p { color: var(--muted); font-size: 15px; line-height: 1.7; max-width: 420px; white-space: pre-line; }
+  #overlay button { margin-top: 24px; }
+  .bar {
+    display: flex;
+    gap: 20px;
+    margin-top: 14px;
+    background: var(--panel);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .bar b { color: var(--accent); }
+  .controls { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; justify-content: center; align-items: center; }
+  button {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  button:hover { background: #2f3442; }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent); color: #1a1d24; border-color: var(--accent); font-weight: 700; }
+  button.primary:hover:not(:disabled) { background: #e0b160; }
+  button.active { background: var(--hidden); border-color: var(--hidden); color: #fff; font-weight: 700; }
+  select {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  #betPanel {
+    display: none;
+    gap: 8px;
+    margin-top: 14px;
+    align-items: center;
+    background: var(--panel);
+    padding: 12px 16px;
+    border-radius: 8px;
+  }
+  #betPanel.show { display: flex; }
+  #betPanel input {
+    width: 90px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid #3a3f4d;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 16px;
+    font-family: inherit;
+    text-align: center;
+  }
+  #result {
+    margin-top: 14px;
+    font-size: 15px;
+    line-height: 1.7;
+    background: var(--panel);
+    border-radius: 8px;
+    padding: 12px 20px;
+    display: none;
+    text-align: center;
+  }
+  #result.show { display: block; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 10px; max-width: 560px; text-align: center; line-height: 1.6; }
+  #liveScore {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--panel);
+    border-radius: 8px;
+    padding: 6px 18px;
+    font-size: 15px;
+    margin-bottom: 10px;
+  }
+  #liveScore b { font-size: 18px; }
+  #liveScore .lead { color: var(--accent); font-size: 13px; }
+  button.danger { border-color: #7f2e2e; color: #e08080; }
+  button.danger:hover { background: #3a2020; }
+  button.danger.armed { background: #c62828; border-color: #c62828; color: #fff; font-weight: 700; }
+  #clockBar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 14px;
+    margin-bottom: 8px;
+    background: var(--panel);
+    border-radius: 8px;
+    padding: 5px 16px;
+  }
+  #clockBar .clock { color: var(--muted); font-variant-numeric: tabular-nums; }
+  #clockBar .clock.running { color: var(--text); font-weight: 700; }
+  #clockBar .clock.low { color: #e05050; font-weight: 700; }
+  #setup {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,17,22,.97);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 11;
+    gap: 10px;
+    padding: 24px;
+  }
+  #setup.show { display: flex; }
+  #setup h2 { font-size: 22px; margin-bottom: 10px; }
+  .setupRow { display: flex; align-items: center; gap: 12px; width: 240px; justify-content: space-between; }
+  .setupRow label { color: var(--muted); font-size: 14px; }
+  .setupRow select { width: 140px; }
+  .setupRow input {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #3a3f4d;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    text-align: center;
+  }
+  #setup button { margin-top: 14px; width: 240px; }
+  a.home { color: var(--muted); font-size: 12px; margin-top: 16px; text-decoration: none; }
+  a.home:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+  <h1>바투 <span>프로토타입</span></h1>
+  <div class="sub">원작 규칙판 — 중국룰 · 필드 · 베이스×5 · 턴베팅 · 히든 1회 · 스캔 3×3</div>
+
+  <div id="status"></div>
+  <div id="notice"></div>
+  <div id="liveScore" style="display:none"></div>
+  <div id="clockBar" style="display:none"></div>
+  <div id="boardWrap"><canvas id="board"></canvas></div>
+
+  <div class="bar" id="infoBar"></div>
+
+  <div class="controls">
+    <button id="baseConfirmBtn" class="primary" style="display:none" disabled>베이스빌드 확정 (0/3)</button>
+    <button id="baseResetBtn" style="display:none">전부 취소</button>
+    <button id="hiddenBtn" class="hidden-btn" style="display:none">🕶️ 히든 착수</button>
+    <button id="peekBtn" style="display:none">👁️ 내 히든 보기</button>
+    <button id="scanBtn" style="display:none">📡 스캔 (−2집)</button>
+    <button id="passBtn" style="display:none">한 수 쉼</button>
+    <button id="undoBtn" style="display:none">무르기</button>
+    <button id="scoreReqBtn" style="display:none">🧮 계가</button>
+    <button id="resignBtn" class="danger" style="display:none">🏳️ 기권</button>
+    <button id="scoreBtn" class="primary" style="display:none">계가 확정</button>
+    <button id="resumeBtn" style="display:none">대국 재개</button>
+    <button id="newBtn">새 대국</button>
+  </div>
+
+  <div id="betPanel">
+    <span id="betLabel"></span>
+    <input id="betInput" type="number" min="0" max="50" step="1" value="0">
+    <span>집</span>
+    <button id="betConfirmBtn" class="primary">베팅</button>
+  </div>
+
+  <div id="result"></div>
+  <div class="hint" id="hintText"></div>
+  <a class="home" href="../index.html">← 게임 선택으로</a>
+
+  <div id="overlay">
+    <h2 id="overlayTitle"></h2>
+    <p id="overlayDesc"></p>
+    <button id="overlayBtn" class="primary"></button>
+  </div>
+
+  <div id="setup">
+    <h2>⚔️ 대국 설정</h2>
+    <div class="setupRow"><label>모드</label>
+      <select id="modeSel">
+        <option value="local">로컬 2인</option>
+        <option value="ai">🤖 AI 대전</option>
+        <option value="watch">👀 AI vs AI 관전</option>
+        <option value="host">온라인 · 방 만들기</option>
+        <option value="join">온라인 · 참가</option>
+      </select>
+    </div>
+    <div class="setupRow" id="aiRow" style="display:none"><label>AI 난이도</label>
+      <select id="aiSel">
+        <option value="쉬움">쉬움</option>
+        <option value="보통" selected>보통</option>
+        <option value="어려움">어려움</option>
+        <option value="신경망">🧠 신경망 AI (히든·스캔까지 학습)</option>
+      </select>
+    </div>
+    <div class="setupRow" id="joinRow" style="display:none"><label>방 코드</label>
+      <input id="roomInput" maxlength="4" placeholder="예: A3K7" style="width:140px;text-transform:uppercase">
+    </div>
+    <div class="setupRow"><label>필드</label>
+      <select id="fieldSel">
+        <option value="기본">기본</option>
+        <option value="스카이">스카이</option>
+        <option value="카오스">카오스</option>
+      </select>
+    </div>
+    <div class="setupRow"><label>총 시간</label>
+      <select id="mainSel">
+        <option value="0">무제한</option>
+        <option value="180">3분</option>
+        <option value="300" selected>5분</option>
+        <option value="600">10분</option>
+        <option value="1200">20분</option>
+      </select>
+    </div>
+    <div class="setupRow"><label>초읽기</label>
+      <select id="byoSel">
+        <option value="0">없음</option>
+        <option value="10">10초 ×3회</option>
+        <option value="20" selected>20초 ×3회</option>
+        <option value="30">30초 ×3회</option>
+      </select>
+    </div>
+    <div class="setupRow"><label>베이스 돌</label>
+      <select id="baseCntSel">
+        <option value="2">2개</option>
+        <option value="3" selected>3개</option>
+        <option value="4">4개</option>
+      </select>
+    </div>
+    <div class="setupRow"><label>히든 횟수</label>
+      <select id="hiddenSel">
+        <option value="0">없음</option>
+        <option value="1" selected>1회</option>
+        <option value="2">2회</option>
+      </select>
+    </div>
+    <button id="setupStartBtn" class="primary">대국 시작</button>
+  </div>
+
+<script>
+const N = 11;
+const EMPTY = 0, BLACK = 1, WHITE = 2;
+const SCAN_COST = 2;    // 스캔 시 성공/실패 무관 상대에게 주는 점수
+const BASE_VALUE = 5;   // 종국까지 살아남은 베이스 돌 1개당 점수
+
+// ---- 대국 설정 (시작 전 설정 화면에서 결정) ----
+let settings = {
+  mainSec: 300,    // 총 시간(초). 0 = 무제한
+  byoSec: 20,      // 초읽기 1회당 초. 0 = 없음
+  byoPeriods: 3,   // 초읽기 횟수
+  baseCount: 3,    // 베이스 돌 개수
+  hiddenMax: 1,    // 히든 횟수 (원작 1회)
+  scanMax: 1,      // 스캔 횟수 (원작 1회)
+};
+
+// ---- 전역 상태 ----
+let phase = null;                       // base1 | base2 | bet1 | bet2 | play
+let baseStones = { 1: [], 2: [] };
+let bets = { 1: null, 2: null };
+let blackPlayer = 0;
+let compensation = 0;
+let rebetDone = false;   // 베팅 동점 시 원작 규칙: 1회 재베팅 → 그래도 동점이면 무작위
+let revealBoard = null;
+let revealNotes = [];
+let pointSpots = [];                    // [{idx, val}] — 필드에 따라 결정
+let currentField = '기본';
+
+let history = [];
+let scoringMode = false;
+let deadFlags = null;
+let gameOver = false;
+let hoverIdx = -1;
+let uiMode = 'normal';                  // normal | placeHidden
+let peek = false;                       // 내 히든 표시 중
+
+function cur() { return history[history.length - 1]; }
+function oppOf(c) { return c === BLACK ? WHITE : BLACK; }
+function colorName(c) {
+  const wp = blackPlayer === 1 ? 2 : 1;
+  return c === BLACK ? `흑(P${blackPlayer})` : `백(P${wp})`;
+}
+function setNotice(msg) { document.getElementById('notice').textContent = msg || ''; }
+
+// 상태 복제 (히든/스캔 정보 포함)
+function cloneState(s) {
+  return {
+    board: s.board.slice(),
+    turn: s.turn, capB: s.capB, capW: s.capW, passes: s.passes,
+    hidden: { 1: [...s.hidden[1]], 2: [...s.hidden[2]] },
+    revealed: [...s.revealed],
+    hiddenUsed: { ...s.hiddenUsed },
+    scan: { ...s.scan },
+    bases: { 1: [...s.bases[1]], 2: [...s.bases[2]] },
+    lastMove: s.lastMove,
+  };
+}
+
+// ---- 바둑 규칙 (진실 보드 기준) ----
+function neighbors(idx) {
+  const x = idx % N, y = (idx / N) | 0, r = [];
+  if (x > 0) r.push(idx - 1);
+  if (x < N - 1) r.push(idx + 1);
+  if (y > 0) r.push(idx - N);
+  if (y < N - 1) r.push(idx + N);
+  return r;
+}
+
+function groupOf(board, idx) {
+  const color = board[idx];
+  const stones = [idx];
+  const seen = new Set([idx]);
+  const libs = new Set();
+  for (let i = 0; i < stones.length; i++) {
+    for (const nb of neighbors(stones[i])) {
+      if (board[nb] === EMPTY) libs.add(nb);
+      else if (board[nb] === color && !seen.has(nb)) {
+        seen.add(nb);
+        stones.push(nb);
+      }
+    }
+  }
+  return { stones, liberties: libs.size };
+}
+
+// 착수 계산. 성공: {board, turn, capB, capW, passes, capturedIdx} / 불법: null
+function computeMove(state, idx) {
+  if (state.board[idx] !== EMPTY) return null;
+  const board = state.board.slice();
+  const me = state.turn, opp = oppOf(me);
+  board[idx] = me;
+
+  const capturedIdx = [];
+  for (const nb of neighbors(idx)) {
+    if (board[nb] === opp) {
+      const g = groupOf(board, nb);
+      if (g.liberties === 0) {
+        for (const s of g.stones) { board[s] = EMPTY; capturedIdx.push(s); }
+      }
+    }
+  }
+
+  if (groupOf(board, idx).liberties === 0) return null;   // 자살수
+
+  const key = board.join('');                              // 동형반복(패) 금지
+  for (const h of history) {
+    if (h.board.join('') === key) return null;
+  }
+
+  return {
+    board,
+    turn: opp,
+    capB: state.capB + (me === BLACK ? capturedIdx.length : 0),
+    capW: state.capW + (me === WHITE ? capturedIdx.length : 0),
+    passes: 0,
+    capturedIdx,
+  };
+}
+
+// 상대 히든을 뺀 '보이는 보드'에서 합법인지 (패 제외, 착수/자살만)
+function isLegalOnView(state, idx) {
+  const opp = oppOf(state.turn);
+  const view = state.board.slice();
+  for (const h of state.hidden[opp]) view[h] = EMPTY;
+  if (view[idx] !== EMPTY) return false;
+  view[idx] = state.turn;
+  for (const nb of neighbors(idx)) {
+    if (view[nb] === opp && groupOf(view, nb).liberties === 0) return true; // 따냄 → 합법
+  }
+  return groupOf(view, idx).liberties > 0;
+}
+
+// 히든 공개 (착수 없이 상태만 변경)
+function pushReveal(color, idxs, msg) {
+  const c = cloneState(cur());
+  c.hidden[color] = c.hidden[color].filter(i => !idxs.includes(i));
+  c.revealed.push(...idxs);
+  c.lastMove = null;
+  history.push(c);
+  setNotice(msg);
+  updateUI();
+  draw();
+}
+
+// ---- 착수 (일반/히든) ----
+function attemptMove(idx, asHidden) {
+  if (phase !== 'play' || scoringMode || gameOver) return false;
+  const s = cur();
+  const me = s.turn, opp = oppOf(me);
+
+  // 상대 히든 위에 착수(찍어보기) → 발각! 착수 무효, 차례 유지 → 다른 곳에 다시 둘 수 있음 (원작 규칙)
+  if (s.hidden[opp].includes(idx)) {
+    const c = cloneState(s);
+    c.hidden[opp] = c.hidden[opp].filter(i => i !== idx);
+    c.revealed.push(idx);
+    // turn/passes 그대로 — 같은 사람이 다시 착수
+    c.lastMove = null;
+    history.push(c);
+    setNotice('💥 히든 발각! 그 자리엔 상대 히든이 있었습니다. 다른 곳에 다시 두세요.');
+    uiMode = 'normal';
+    updateUI();
+    draw();
+    return 'revealed';
+  }
+
+  if (asHidden && s.hiddenUsed[me] >= settings.hiddenMax) {
+    setNotice('히든을 모두 사용했습니다.');
+    return false;
+  }
+
+  const r = computeMove(s, idx);
+  if (!r) {
+    // 보이는 보드에선 합법인데 히든 때문에 불법 → 히든 공개하고 다시 둠
+    if (s.board[idx] === EMPTY && s.hidden[opp].length > 0 && isLegalOnView(s, idx)) {
+      pushReveal(opp, s.hidden[opp].slice(), '💥 상대 히든 때문에 둘 수 없는 자리였습니다 — 히든 공개! 다시 두세요.');
+      return 'revealed';
+    }
+    setNotice('둘 수 없는 자리입니다.');
+    return false;
+  }
+
+  const next = {
+    board: r.board, turn: r.turn, capB: r.capB, capW: r.capW, passes: r.passes,
+    hidden: { 1: [...s.hidden[1]], 2: [...s.hidden[2]] },
+    revealed: [...s.revealed],
+    hiddenUsed: { ...s.hiddenUsed },
+    scan: { ...s.scan },
+    bases: { 1: [...s.bases[1]], 2: [...s.bases[2]] },
+    lastMove: asHidden ? null : idx,
+  };
+
+  const capd = r.capturedIdx;
+  const notes = [];
+
+  if (capd.length > 0) {
+    // 잡힌 베이스 돌은 5점 가치를 잃음
+    const lostBases = next.bases[opp].filter(i => capd.includes(i)).length;
+    if (lostBases > 0) {
+      next.bases[opp] = next.bases[opp].filter(i => !capd.includes(i));
+      notes.push(`🔥 상대 베이스 돌 ${lostBases}개 격파! (−${lostBases * BASE_VALUE}점)`);
+    }
+    // 잡힌 돌 중 상대 히든 → 제거되며 공개
+    const capturedHidden = next.hidden[opp].filter(i => capd.includes(i));
+    if (capturedHidden.length) {
+      next.hidden[opp] = next.hidden[opp].filter(i => !capd.includes(i));
+      notes.push(`💥 상대 히든 ${capturedHidden.length}개가 잡혀 제거되었습니다!`);
+    }
+    next.revealed = next.revealed.filter(i => !capd.includes(i));
+
+    // 포획에 가담한 내 히든 → 즉시 공개
+    const adj = new Set();
+    capd.forEach(c => neighbors(c).forEach(n => adj.add(n)));
+    const helpers = next.hidden[me].filter(i => adj.has(i));
+    if (helpers.length) {
+      next.hidden[me] = next.hidden[me].filter(i => !helpers.includes(i));
+      next.revealed.push(...helpers);
+      notes.push('⚡ 포획에 가담한 히든이 공개되었습니다.');
+    }
+  }
+
+  if (asHidden) {
+    next.hiddenUsed[me]++;
+    if (capd.length > 0) {
+      next.revealed.push(idx);   // 히든이 따내면 즉시 공개
+      notes.push('⚡ 히든이 돌을 따내며 즉시 공개되었습니다!');
+    } else {
+      next.hidden[me].push(idx);
+      notes.push(`🕶️ ${colorName(me)}가 히든을 사용했습니다. (위치 비공개)`);
+    }
+  }
+
+  history.push(next);
+  setNotice(notes.join(' '));
+  uiMode = 'normal';
+  peek = false;
+  updateUI();
+  draw();
+  return true;
+}
+
+function tryMove(idx) { return attemptMove(idx, false) === true; }
+
+// 지정한 교차점 중심 3×3 범위를 스캔. 성공/실패 무관 상대에게 2점.
+function doScanAt(center) {
+  if (phase !== 'play' || scoringMode || gameOver) return;
+  const s = cur();
+  const me = s.turn, opp = oppOf(me);
+  if (s.scan[me] / SCAN_COST >= settings.scanMax) { setNotice('스캔을 모두 사용했습니다.'); return; }
+  const r0 = (center / N) | 0, c0 = center % N;
+  const area = [];
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      const r = r0 + dr, c = c0 + dc;
+      if (r >= 0 && r < N && c >= 0 && c < N) area.push(r * N + c);
+    }
+  }
+  const found = s.hidden[opp].filter(i => area.includes(i));
+  const c = cloneState(s);
+  c.scan[me] += SCAN_COST;
+  c.hidden[opp] = c.hidden[opp].filter(i => !found.includes(i));
+  c.revealed.push(...found);
+  c.lastMove = null;
+  history.push(c);
+  setNotice(found.length > 0
+    ? `📡 스캔 성공! 히든을 찾았습니다. (상대에게 +${SCAN_COST}점)`
+    : `📡 스캔 실패 — 범위 안에 히든이 없습니다. (상대에게 +${SCAN_COST}점)`);
+  uiMode = 'normal';
+  updateUI();
+  draw();
+}
+
+function pass() {
+  if (phase !== 'play' || scoringMode || gameOver) return;
+  const s = cur();
+  const c = cloneState(s);
+  c.turn = oppOf(s.turn);
+  c.passes = s.passes + 1;
+  c.lastMove = null;
+  history.push(c);
+  if (cur().passes >= 2) enterScoring();
+  updateUI();
+  draw();
+}
+
+function undo() {
+  if (scoringMode) { exitScoring(); return; }
+  if (history.length > 1) {
+    history.pop();
+    gameOver = false;
+    setNotice('');
+    updateUI();
+    draw();
+  }
+}
+
+// 필드: +/− 포인트는 베이스빌드가 끝난 뒤에 공개된다 (원작 순서).
+// 위치는 자유 랜덤이 아니라 필드별로 정해진 배치 패턴 중 하나가 뜬다.
+// 값은 +2/+3/+5, −2/−3/−5 하나씩 — 어느 자리에 어떤 크기가 붙는지만 공개 때 섞인다.
+// 11×11 화점: 귀 (2,2)(2,8)(8,2)(8,8) / 변 (2,5)(5,2)(5,8)(8,5) / 중앙 (5,5)
+const PLUS_VALUES = [5, 3, 2];
+const MINUS_VALUES = [-5, -3, -2];
+const FIELDS = {
+  '기본': [   // 화점 중심
+    { plus: [24, 96, 60], minus: [30, 90, 63] },
+    { plus: [30, 90, 60], minus: [24, 96, 57] },
+    { plus: [27, 93, 60], minus: [57, 63, 96] },
+  ],
+  '스카이': [   // 중앙 지향, 귀가 위험
+    { plus: [60, 27, 93], minus: [24, 30, 96] },
+    { plus: [60, 57, 63], minus: [24, 90, 96] },
+  ],
+  '카오스': [   // 변칙 지점
+    { plus: [36, 84, 60], minus: [26, 94, 38] },
+    { plus: [46, 74, 16], minus: [104, 48, 72] },
+    { plus: [25, 95, 59], minus: [61, 29, 91] },
+  ],
+};
+
+// 필드의 배치 패턴 중 하나를 선택하고, +/− 크기를 자리에 무작위로 배정
+function generatePointSpots(fieldName) {
+  const layouts = FIELDS[fieldName];
+  const layout = layouts[Math.floor(Math.random() * layouts.length)];
+  const shuffle = arr => {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+  const pv = shuffle(PLUS_VALUES);
+  const mv = shuffle(MINUS_VALUES);
+  return [
+    ...layout.plus.map((idx, k) => ({ idx, val: pv[k] })),
+    ...layout.minus.map((idx, k) => ({ idx, val: mv[k] })),
+  ];
+}
+
+// ---- 게임 흐름 ----
+// 새 대국 → 설정 화면 → 베이스빌드 → 공개/베팅 → 본게임
+function newGame() {
+  phase = null;
+  baseStones = { 1: [], 2: [] };
+  bets = { 1: null, 2: null };
+  blackPlayer = 0;
+  compensation = 0;
+  rebetDone = false;
+  revealBoard = null;
+  revealNotes = [];
+  pointSpots = [];   // 포인트는 베이스빌드가 끝난 뒤 공개
+  history = [];
+  scoringMode = false;
+  deadFlags = null;
+  gameOver = false;
+  hoverIdx = -1;
+  uiMode = 'normal';
+  peek = false;
+  stopClocks();
+  leaveOnline();
+  oppLastAction = '';
+  setNotice('');
+  document.getElementById('result').classList.remove('show');
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('setup').classList.add('show');
+  updateUI();
+  draw();
+}
+
+// 설정 확정 → (온라인이면 방 생성/참가) → 베이스빌드 시작
+async function startFromSetup() {
+  const mode = document.getElementById('modeSel').value;
+
+  if (mode === 'join') {
+    const code = document.getElementById('roomInput').value.trim().toUpperCase();
+    if (code.length < 4) { setNotice('⚠️ 방 코드 4자리를 입력하세요.'); return; }
+    await joinRoom(code);   // 설정은 방장 상태를 그대로 받는다
+    return;
+  }
+
+  settings.mainSec = parseInt(document.getElementById('mainSel').value, 10);
+  settings.byoSec = parseInt(document.getElementById('byoSel').value, 10);
+  settings.baseCount = parseInt(document.getElementById('baseCntSel').value, 10);
+  settings.hiddenMax = parseInt(document.getElementById('hiddenSel').value, 10);
+  currentField = document.getElementById('fieldSel').value;
+  document.getElementById('setup').classList.remove('show');
+
+  if (mode === 'host' || mode === 'ai' || mode === 'watch') {
+    const payload = {
+      mainSec: settings.mainSec, byoSec: settings.byoSec, byoPeriods: settings.byoPeriods,
+      baseCount: settings.baseCount, hiddenMax: settings.hiddenMax, scanMax: settings.scanMax,
+      aiLevel: document.getElementById('aiSel').value,
+    };
+    let code;
+    try { code = await createRoom(payload, currentField, { ai: mode === 'ai', aivai: mode === 'watch' }); }
+    catch (e) { setNotice('⚠️ 서버에 연결할 수 없습니다. server.py(온라인 서버)로 접속했는지 확인하세요.'); document.getElementById('setup').classList.add('show'); return; }
+    if (mode === 'host') {
+      showOverlay(
+        `방 코드: ${code}`,
+        `상대에게 이 코드를 알려주세요!\n같은 와이파이면 이 컴퓨터 주소로 접속해 [온라인 · 참가]에 입력하면 됩니다.\n\n기다리는 동안 내 베이스빌드(돌 ${settings.baseCount}개)를 먼저 놓을 수 있습니다.`,
+        '베이스빌드 시작',
+        () => { updateUI(); draw(); }
+      );
+    }
+    // AI 대전은 오버레이 없이 바로 베이스빌드 시작 (AI는 이미 확정 완료)
+  } else {
+    showOverlay(
+      '플레이어 1 — 베이스빌드',
+      `상대가 화면을 보지 않는 상태에서\n돌 ${settings.baseCount}개를 원하는 자리에 놓으세요.\n(놓은 돌을 다시 클릭하면 취소)`,
+      '시작',
+      () => { phase = 'base1'; updateUI(); draw(); }
+    );
+  }
+  updateUI();
+  draw();
+}
+
+function confirmBase() {
+  if (phase === 'base1') {
+    if (online.active) {
+      phase = 'base2';
+      setNotice('내 베이스빌드 완료 — 상대를 기다립니다…');
+    } else {
+      showOverlay(
+        '플레이어 2에게 넘겨주세요',
+        `플레이어 2 — 베이스빌드\n상대 돌은 보이지 않습니다.\n돌 ${settings.baseCount}개를 놓으세요.`,
+        '시작',
+        () => { phase = 'base2'; updateUI(); draw(); }
+      );
+    }
+  } else if (phase === 'base2') {
+    resolveReveal();
+  }
+  updateUI();
+  draw();
+}
+
+function resolveReveal() {
+  revealNotes = [];
+  const set1 = new Set(baseStones[1]);
+  const set2 = new Set(baseStones[2]);
+  const overlap = [...set1].filter(i => set2.has(i));
+  if (overlap.length > 0) {
+    for (const i of overlap) { set1.delete(i); set2.delete(i); }
+    revealNotes.push(`⚡ 같은 자리에 놓인 돌 ${overlap.length}개는 서로 상쇄되어 사라졌습니다.`);
+  }
+
+  const board = new Int8Array(N * N);
+  for (const i of set1) board[i] = BLACK;
+  for (const i of set2) board[i] = WHITE;
+
+  const toRemove = new Set();
+  const checked = new Set();
+  for (let i = 0; i < board.length; i++) {
+    if (board[i] !== EMPTY && !checked.has(i)) {
+      const g = groupOf(board, i);
+      g.stones.forEach(s => checked.add(s));
+      if (g.liberties === 0) g.stones.forEach(s => toRemove.add(s));
+    }
+  }
+  if (toRemove.size > 0) {
+    for (const i of toRemove) board[i] = EMPTY;
+    revealNotes.push(`⚡ 활로가 없는 돌 ${toRemove.size}개가 제거되었습니다.`);
+  }
+
+  revealBoard = board;
+
+  // 이제서야 +/− 포인트 공개! 고정 패턴이라 베이스 돌 위에 뜰 수도 있다 (그 돌이 점유한 것으로 처리)
+  pointSpots = generatePointSpots(currentField);
+
+  const revealText =
+    (revealNotes.length ? revealNotes.join('\n') + '\n\n' : '') +
+    `${currentField} 필드의 포인트(+2/+3/+5 · −2/−3/−5)가 공개되었습니다.\n` +
+    '베이스와 포인트 위치를 보고 흑번 베팅을 진행합니다.\n먼저 두고 싶은 만큼 집을 베팅하세요.\n높게 부른 쪽이 흑(선수)이 되고,\n베팅액만큼 상대에게 공제됩니다.';
+
+  if (online.active) {
+    // 온라인: 페이즈를 즉시 넘겨야 push에 반영된다. 오버레이는 안내용.
+    phase = 'bet1';
+    showOverlay('베이스빌드 & 포인트 공개!', revealText, '확인', () => { updateUI(); draw(); });
+  } else {
+    showOverlay('베이스빌드 & 포인트 공개!', revealText, '베팅 시작',
+      () => { phase = 'bet1'; updateUI(); draw(); });
+  }
+}
+
+function confirmBet() {
+  const input = document.getElementById('betInput');
+  const v = parseFloat(input.value);
+  if (isNaN(v) || v < 0 || v > 50 || v % 1 !== 0) { setNotice('베팅은 정수만 가능합니다.'); return; }
+  if (phase === 'bet1') {
+    bets[1] = v;
+    input.value = '0';
+    if (online.active) {
+      phase = 'bet2';
+      setNotice('내 베팅 완료 — 상대의 베팅을 기다립니다…');
+    } else {
+      showOverlay(
+        '플레이어 2에게 넘겨주세요',
+        '플레이어 2 — 흑번 베팅\n먼저 두는 대가로 낼 집 수를 입력하세요.',
+        '입력하기',
+        () => { phase = 'bet2'; updateUI(); draw(); }
+      );
+    }
+  } else if (phase === 'bet2') {
+    bets[2] = v;
+    input.value = '0';
+    resolveBets();
+  }
+  updateUI();
+}
+
+function resolveBets() {
+  // 원작 규칙: 베팅 동점이면 1회 재베팅. 재베팅도 동점이면 그 값으로 확정 + 무작위 선공.
+  if (bets[1] === bets[2] && !rebetDone) {
+    rebetDone = true;
+    const tieVal = bets[1];
+    bets = { 1: null, 2: null };
+    showOverlay(
+      '베팅 동점!',
+      `양쪽 다 ${tieVal}집을 불렀습니다.\n원작 규칙에 따라 재베팅을 진행합니다.\n(재베팅도 동점이면 그 값으로 확정하고 선공은 무작위로 정합니다)`,
+      '재베팅 시작',
+      () => { phase = 'bet1'; updateUI(); draw(); }
+    );
+    updateUI();
+    return;
+  }
+
+  let tieNote = '';
+  if (bets[1] > bets[2]) blackPlayer = 1;
+  else if (bets[2] > bets[1]) blackPlayer = 2;
+  else {
+    blackPlayer = Math.random() < 0.5 ? 1 : 2;
+    tieNote = '\n(재베팅도 동점 — 그 값으로 확정, 무작위로 흑을 결정했습니다)';
+  }
+  compensation = bets[blackPlayer];
+
+  if (blackPlayer === 2) {
+    for (let i = 0; i < revealBoard.length; i++) {
+      if (revealBoard[i] === BLACK) revealBoard[i] = WHITE;
+      else if (revealBoard[i] === WHITE) revealBoard[i] = BLACK;
+    }
+  }
+
+  // 베이스 돌 위치 기록 (살아남으면 개당 5점)
+  const bases = { 1: [], 2: [] };
+  for (let i = 0; i < revealBoard.length; i++) {
+    if (revealBoard[i] !== EMPTY) bases[revealBoard[i]].push(i);
+  }
+
+  history = [{
+    board: revealBoard.slice(),
+    turn: BLACK, capB: 0, capW: 0, passes: 0,
+    hidden: { 1: [], 2: [] },
+    revealed: [],
+    hiddenUsed: { 1: 0, 2: 0 },
+    scan: { 1: 0, 2: 0 },
+    bases,
+    lastMove: null,
+  }];
+
+  const betText =
+    `플레이어 1: ${bets[1]}집 · 플레이어 2: ${bets[2]}집${tieNote}\n\n` +
+    `⚫ 흑 = 플레이어 ${blackPlayer} (먼저 둡니다)\n` +
+    `⚪ 백 = 플레이어 ${blackPlayer === 1 ? 2 : 1} (턴베팅 +${compensation}점)\n\n` +
+    `히든 ${settings.hiddenMax}회 · 스캔은 상대에게 ${SCAN_COST}점을 주고 3×3 확인.\n살아남은 베이스 돌은 개당 ${BASE_VALUE}점입니다.` +
+    (settings.mainSec || settings.byoSec ? `\n⏱️ ${settings.mainSec ? Math.round(settings.mainSec / 60) + '분' : ''}${settings.byoSec ? ` + 초읽기 ${settings.byoSec}초 ×${settings.byoPeriods}회` : ''}` : '');
+
+  if (online.active) {
+    // 온라인: 즉시 본게임 시작 (push에 반영). 오버레이는 안내용.
+    phase = 'play';
+    startClocks();
+    setNotice(`⚫ 흑 = P${blackPlayer} · 턴베팅 +${compensation}${tieNote ? ' (동점 → 무작위)' : ''}`);
+    showOverlay('베팅 결과', betText, '확인', () => { updateUI(); draw(); });
+  } else {
+    showOverlay('베팅 결과', betText, '대국 시작',
+      () => { phase = 'play'; startClocks(); updateUI(); draw(); });
+  }
+  updateUI();
+  draw();
+}
+
+// ---- 계가 ----
+function enterScoring() {
+  scoringMode = true;
+  deadFlags = new Array(N * N).fill(false);
+  uiMode = 'normal';
+  peek = false;
+  setNotice('🧮 계가 — 모든 히든이 공개되었습니다.');
+}
+
+function exitScoring() {
+  scoringMode = false;
+  deadFlags = null;
+  gameOver = false;
+  if (cur().passes > 0) history.pop();
+  document.getElementById('result').classList.remove('show');
+  setNotice('');
+  updateUI();
+  draw();
+}
+
+function toggleDead(idx) {
+  const board = cur().board;
+  if (board[idx] === EMPTY) return;
+  const g = groupOf(board, idx);
+  const flag = !deadFlags[idx];
+  for (const s of g.stones) deadFlags[s] = flag;
+  draw();
+}
+
+// 주어진 판에서 점수 산출 (계가·실시간 공용)
+// 집 계산 — 마이너스 점은 빈 집으로 세지 않음 (원작 규칙)
+function computeScoreParts(board, bases, scan) {
+  const minusSet = new Set(pointSpots.filter(p => p.val < 0).map(p => p.idx));
+  let terrB = 0, terrW = 0, stonesB = 0, stonesW = 0;
+  const seen = new Array(N * N).fill(false);
+  for (let i = 0; i < board.length; i++) {
+    if (board[i] === BLACK) stonesB++;
+    else if (board[i] === WHITE) stonesW++;
+    else if (!seen[i]) {
+      const region = [i]; seen[i] = true;
+      let touchB = false, touchW = false;
+      for (let j = 0; j < region.length; j++) {
+        for (const nb of neighbors(region[j])) {
+          if (board[nb] === BLACK) touchB = true;
+          else if (board[nb] === WHITE) touchW = true;
+          else if (!seen[nb]) { seen[nb] = true; region.push(nb); }
+        }
+      }
+      const minusCells = region.filter(c => minusSet.has(c)).length;
+      if (touchB && !touchW) terrB += region.length - minusCells;
+      else if (touchW && !touchB) terrW += region.length - minusCells;
+    }
+  }
+
+  // 포인트 지점: 돌로 점유해야 반영 (빈 집은 해당 없음)
+  let pointB = 0, pointW = 0;
+  for (const sp of pointSpots) {
+    if (board[sp.idx] === BLACK) pointB += sp.val;
+    else if (board[sp.idx] === WHITE) pointW += sp.val;
+  }
+
+  // 살아남은 베이스 돌 ×5
+  const baseB = bases[BLACK].filter(i => board[i] === BLACK).length;
+  const baseW = bases[WHITE].filter(i => board[i] === WHITE).length;
+
+  return {
+    stonesB, stonesW, terrB, terrW, pointB, pointW, baseB, baseW,
+    scoreB: stonesB + terrB + baseB * BASE_VALUE + pointB + scan[WHITE],
+    scoreW: stonesW + terrW + baseW * BASE_VALUE + pointW + scan[BLACK] + compensation,
+  };
+}
+
+function finalizeScore() {
+  const s = cur();
+  const board = s.board.slice();
+  for (let i = 0; i < board.length; i++) if (deadFlags[i]) board[i] = EMPTY;
+
+  const p = computeScoreParts(board, s.bases, s.scan);
+  const diff = Math.abs(p.scoreB - p.scoreW);
+  const whitePlayer = blackPlayer === 1 ? 2 : 1;
+  let winnerText;
+  if (p.scoreB === p.scoreW) {
+    // 동점은 후공(백) 승 — 흑은 선수를 샀으므로 베팅을 '초과'해야 이긴다
+    winnerText = `동점 — ⚪ 백 (플레이어 ${whitePlayer}) 승! (동점은 후공 승)`;
+  } else {
+    const winColor = p.scoreB > p.scoreW ? '⚫ 흑' : '⚪ 백';
+    const winP = p.scoreB > p.scoreW ? blackPlayer : whitePlayer;
+    winnerText = `${winColor} (플레이어 ${winP}) ${diff}집 승!`;
+  }
+
+  gameOver = true;
+  const el = document.getElementById('result');
+  const ptB = p.pointB !== 0 ? ` ${p.pointB > 0 ? '+' : '−'} 포인트 ${Math.abs(p.pointB)}` : '';
+  const ptW = p.pointW !== 0 ? ` ${p.pointW > 0 ? '+' : '−'} 포인트 ${Math.abs(p.pointW)}` : '';
+  const scanGiftB = s.scan[WHITE] ? ` + 상대스캔 ${s.scan[WHITE]}` : '';
+  const scanGiftW = s.scan[BLACK] ? ` + 상대스캔 ${s.scan[BLACK]}` : '';
+  el.innerHTML =
+    `⚫ 흑 (P${blackPlayer}): 돌 ${p.stonesB} + 집 ${p.terrB} + 베이스 ${p.baseB}×${BASE_VALUE}${ptB}${scanGiftB} = <b>${p.scoreB}</b><br>` +
+    `⚪ 백 (P${whitePlayer}): 돌 ${p.stonesW} + 집 ${p.terrW} + 베이스 ${p.baseW}×${BASE_VALUE}${ptW}${scanGiftW} + 턴베팅 ${compensation} = <b>${p.scoreW}</b><br>` +
+    `<b style="color:var(--accent)">${winnerText}</b>`;
+  el.classList.add('show');
+  updateUI();
+  draw();
+}
+
+// ---- 대국 시계 (총시간 + 초읽기) ----
+let clocks = null;          // { 1: {main, byoLeft, byoCur}, 2: {...} } — 색 기준
+let clockInterval = null;
+let clockLastTs = 0;
+let clockColor = 0;         // 현재 시간이 흐르는 색
+
+function timedGame() { return settings.mainSec > 0 || settings.byoSec > 0; }
+
+function startClocks() {
+  stopClocks();
+  if (!timedGame()) { updateClockUI(); return; }
+  const mk = () => ({
+    main: settings.mainSec,
+    byoLeft: settings.byoSec > 0 ? settings.byoPeriods : 0,
+    byoCur: settings.byoSec,
+  });
+  clocks = { 1: mk(), 2: mk() };
+  clockColor = BLACK;
+  clockLastTs = Date.now();
+  clockInterval = setInterval(clockTick, 250);
+  updateClockUI();
+}
+
+function stopClocks() {
+  if (clockInterval) clearInterval(clockInterval);
+  clockInterval = null;
+  clocks = null;
+  updateClockUI();
+}
+
+function clockTick() {
+  const now = Date.now();
+  const dt = (now - clockLastTs) / 1000;
+  clockLastTs = now;
+  if (!clocks || phase !== 'play' || scoringMode || gameOver) { updateClockUI(); return; }
+
+  const turn = cur().turn;
+  // 차례가 넘어갔으면: 방금 둔 쪽의 초읽기 1회분 리셋
+  if (turn !== clockColor) {
+    const prev = clocks[clockColor];
+    if (prev && prev.main <= 0 && prev.byoLeft > 0) prev.byoCur = settings.byoSec;
+    clockColor = turn;
+  }
+
+  const c = clocks[turn];
+  if (c.main > 0) {
+    c.main -= dt;
+    if (c.main <= 0) {
+      c.main = 0;
+      if (settings.byoSec <= 0) { if (!online.active) doTimeLoss(turn); return; }   // 온라인은 서버가 판정
+    }
+  } else if (settings.byoSec > 0) {
+    c.byoCur -= dt;
+    if (c.byoCur <= 0) {
+      c.byoLeft--;
+      if (c.byoLeft <= 0) { if (!online.active) doTimeLoss(turn); else c.byoLeft = 0; return; }
+      c.byoCur = settings.byoSec;
+      setNotice(`⏱️ ${colorName(turn)} 초읽기 ${c.byoLeft}회 남음!`);
+    }
+  }
+  updateClockUI();
+}
+
+function fmtTime(sec) {
+  const s = Math.max(0, Math.ceil(sec));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function updateClockUI() {
+  const el = document.getElementById('clockBar');
+  if (!clocks || phase !== 'play') { el.style.display = 'none'; return; }
+  el.style.display = '';
+  const turn = cur().turn;
+  const html = [BLACK, WHITE].map(color => {
+    const c = clocks[color];
+    const label = color === BLACK ? '⚫' : '⚪';
+    let t;
+    if (c.main > 0) t = fmtTime(c.main);
+    else if (settings.byoSec > 0) t = `초읽기 ${Math.max(0, Math.ceil(c.byoCur))}초 ×${c.byoLeft}`;
+    else t = '0:00';
+    const low = (c.main > 0 && c.main < 30) || (c.main <= 0 && c.byoLeft <= 1);
+    const running = !gameOver && !scoringMode && turn === color;
+    return `<span class="clock${running ? ' running' : ''}${low && running ? ' low' : ''}">${label} ${t}</span>`;
+  }).join('');
+  el.innerHTML = html;
+}
+
+// 시간패
+function doTimeLoss(loser) {
+  const winner = oppOf(loser);
+  gameOver = true;
+  scoringMode = false;
+  const el = document.getElementById('result');
+  el.innerHTML = `<b style="color:var(--accent)">⏱️ ${colorName(loser)} 시간패 — ${winner === BLACK ? '⚫' : '⚪'} ${colorName(winner)} 승!</b>`;
+  el.classList.add('show');
+  setNotice('');
+  updateUI();
+  draw();
+}
+
+// 기권 — 온라인에선 항상 '내' 색이 기권 (로컬은 현재 차례)
+function doResign() {
+  const loser = online.active ? myColor() : cur().turn;
+  const winner = oppOf(loser);
+  gameOver = true;
+  scoringMode = false;
+  const el = document.getElementById('result');
+  el.innerHTML = `<b style="color:var(--accent)">${colorName(loser)} 기권 — ${winner === BLACK ? '⚫' : '⚪'} ${colorName(winner)} 승!</b>`;
+  el.classList.add('show');
+  setNotice('');
+  updateUI();
+  draw();
+}
+
+// ---- 오버레이 ----
+function showOverlay(title, desc, btnText, cb) {
+  document.getElementById('overlayTitle').textContent = title;
+  document.getElementById('overlayDesc').textContent = desc;
+  const btn = document.getElementById('overlayBtn');
+  btn.textContent = btnText;
+  btn.onclick = () => {
+    document.getElementById('overlay').classList.remove('show');
+    cb();
+  };
+  document.getElementById('overlay').classList.add('show');
+}
+
+// ---- 렌더링 ----
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+const SIZE = 560, MARGIN = 34;
+const CELL = (SIZE - MARGIN * 2) / (N - 1);
+const dpr = window.devicePixelRatio || 1;
+canvas.width = SIZE * dpr;
+canvas.height = SIZE * dpr;
+canvas.style.width = SIZE + 'px';
+canvas.style.height = SIZE + 'px';
+ctx.scale(dpr, dpr);
+
+function px(col) { return MARGIN + col * CELL; }
+
+// 화면에 표시할 판: 미공개 히든은 숨김 (계가 땐 전부 공개)
+function displayBoard() {
+  if (phase === 'base1' || phase === 'base2' || phase === 'base') {
+    const b = new Int8Array(N * N);
+    // 온라인: 내 베이스만 (상대 것은 서버가 아예 안 보내줌)
+    // 로컬: 현재 차례 플레이어의 베이스만 표시
+    const p = online.active ? online.myPlayer : (phase === 'base1' ? 1 : 2);
+    for (const i of baseStones[p]) b[i] = p === 1 ? BLACK : WHITE;
+    return b;
+  }
+  if (phase === 'bet1' || phase === 'bet2' || phase === 'bet') return revealBoard || new Int8Array(N * N);
+  if (phase === 'play') {
+    const s = cur();
+    const b = s.board.slice();
+    if (!scoringMode) {
+      for (const i of s.hidden[BLACK]) b[i] = EMPTY;
+      for (const i of s.hidden[WHITE]) b[i] = EMPTY;
+      if (online.active) {
+        // 온라인: 상대가 내 화면을 못 보므로 내 히든은 항상 표시
+        const mc = myColor();
+        for (const i of s.hidden[mc]) b[i] = mc;
+      } else if (peek || uiMode === 'placeHidden') {
+        // 로컬: 내 히든 보기 / 히든 착수 모드에서만 현재 차례의 히든 표시
+        for (const i of s.hidden[s.turn]) b[i] = s.turn;
+      }
+    }
+    return b;
+  }
+  return new Int8Array(N * N);
+}
+
+function draw() {
+  const board = displayBoard();
+  const s = phase === 'play' ? cur() : null;
+
+  const grad = ctx.createLinearGradient(0, 0, SIZE, SIZE);
+  grad.addColorStop(0, '#dcb35c');
+  grad.addColorStop(1, '#c99b45');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, SIZE, SIZE);
+
+  ctx.strokeStyle = 'rgba(40,25,5,.75)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < N; i++) {
+    ctx.beginPath();
+    ctx.moveTo(px(0), px(i)); ctx.lineTo(px(N - 1), px(i));
+    ctx.moveTo(px(i), px(0)); ctx.lineTo(px(i), px(N - 1));
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = 'rgba(40,25,5,.85)';
+  for (const [x, y] of [[2,2],[2,8],[8,2],[8,8],[5,5]]) {
+    ctx.beginPath();
+    ctx.arc(px(x), px(y), 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 포인트 지점 (빈 자리)
+  for (const sp of pointSpots) {
+    if (board[sp.idx] !== EMPTY) continue;
+    drawPointMarker(px(sp.idx % N), px((sp.idx / N) | 0), sp.val, false);
+  }
+
+  const R = CELL * 0.46;
+  const myHiddenSet = s && !scoringMode
+    ? (online.active ? new Set(s.hidden[myColor()])
+       : (peek || uiMode === 'placeHidden') ? new Set(s.hidden[s.turn]) : new Set())
+    : new Set();
+  const revealedSet = s ? new Set(s.revealed) : new Set();
+  const allHiddenAtScoring = s && scoringMode
+    ? new Set([...s.hidden[BLACK], ...s.hidden[WHITE]]) : new Set();
+
+  for (let i = 0; i < board.length; i++) {
+    if (board[i] === EMPTY) continue;
+    const cx = px(i % N), cy = px((i / N) | 0);
+    drawStone(cx, cy, R, board[i], deadFlags && deadFlags[i]);
+    // 히든 표식
+    if (myHiddenSet.has(i) || revealedSet.has(i) || allHiddenAtScoring.has(i)) {
+      ctx.strokeStyle = '#a78bfa';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.arc(cx, cy, R * 0.72, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // 포인트 지점 (돌이 덮은 자리 — 작은 배지)
+  for (const sp of pointSpots) {
+    if (board[sp.idx] === EMPTY) continue;
+    drawPointMarker(px(sp.idx % N) + R * 0.62, px((sp.idx / N) | 0) - R * 0.62, sp.val, true);
+  }
+
+  // 마지막 수 표시 (히든이 아닐 때만)
+  if (phase === 'play' && s.lastMove !== null && board[s.lastMove] !== EMPTY) {
+    ctx.strokeStyle = board[s.lastMove] === BLACK ? '#e8c87a' : '#a05a2c';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(px(s.lastMove % N), px((s.lastMove / N) | 0), R * 0.45, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // 스캔 조준: 3×3 범위 표시
+  if (phase === 'play' && uiMode === 'scanTarget' && !scoringMode && hoverIdx >= 0) {
+    const r0 = (hoverIdx / N) | 0, c0 = hoverIdx % N;
+    const x1 = px(Math.max(0, c0 - 1)) - CELL * 0.4;
+    const y1 = px(Math.max(0, r0 - 1)) - CELL * 0.4;
+    const x2 = px(Math.min(N - 1, c0 + 1)) + CELL * 0.4;
+    const y2 = px(Math.min(N - 1, r0 + 1)) + CELL * 0.4;
+    ctx.strokeStyle = '#4fc3f7';
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([6, 4]);
+    ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+    ctx.setLineDash([]);
+  }
+
+  // 호버 미리보기
+  const basePhaseNum = phase === 'base' ? online.myPlayer
+    : phase === 'base1' ? 1 : phase === 'base2' ? 2 : 0;
+  const baseEditable = basePhaseNum > 0 &&
+    (phase !== 'base' || !(onlineView && onlineView.myBaseConfirmed)) &&
+    baseStones[basePhaseNum].length < settings.baseCount;
+  const canPlace =
+    (phase === 'play' && !scoringMode && !gameOver && uiMode !== 'scanTarget' &&
+      (!online.active || cur().turn === myColor())) ||
+    baseEditable;
+  if (canPlace && hoverIdx >= 0 && board[hoverIdx] === EMPTY) {
+    let color;
+    if (phase === 'play') color = cur().turn;
+    else {
+      const bp = phase === 'base' ? online.myPlayer : (phase === 'base1' ? 1 : 2);
+      color = bp === 1 ? BLACK : WHITE;
+    }
+    ctx.globalAlpha = 0.45;
+    drawStone(px(hoverIdx % N), px((hoverIdx / N) | 0), R, color, false);
+    if (uiMode === 'placeHidden') {
+      ctx.strokeStyle = '#a78bfa';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.arc(px(hoverIdx % N), px((hoverIdx / N) | 0), R * 0.72, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawPointMarker(cx, cy, val, small) {
+  const r = small ? 8 : CELL * 0.34;
+  ctx.save();
+  ctx.fillStyle = val > 0 ? 'rgba(46,125,50,.92)' : 'rgba(198,40,40,.92)';
+  ctx.strokeStyle = 'rgba(255,255,255,.85)';
+  ctx.lineWidth = small ? 1 : 1.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${small ? 8 : 12}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText((val > 0 ? '+' : '−') + Math.abs(val), cx, cy + 0.5);
+  ctx.restore();
+}
+
+function drawStone(cx, cy, r, color, dead) {
+  ctx.save();
+  if (dead) ctx.globalAlpha = 0.4;
+  const g = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.35, r * 0.1, cx, cy, r);
+  if (color === BLACK) {
+    g.addColorStop(0, '#606060');
+    g.addColorStop(1, '#0a0a0a');
+  } else {
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(1, '#c8c8c8');
+  }
+  ctx.fillStyle = g;
+  ctx.shadowColor = 'rgba(0,0,0,.4)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetY = 1.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  if (dead) {
+    ctx.strokeStyle = '#e04040';
+    ctx.lineWidth = 2;
+    const d = r * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(cx - d, cy - d); ctx.lineTo(cx + d, cy + d);
+    ctx.moveTo(cx + d, cy - d); ctx.lineTo(cx - d, cy + d);
+    ctx.stroke();
+  }
+}
+
+function eventToIdx(e) {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (SIZE / rect.width);
+  const y = (e.clientY - rect.top) * (SIZE / rect.height);
+  const col = Math.round((x - MARGIN) / CELL);
+  const row = Math.round((y - MARGIN) / CELL);
+  if (col < 0 || col >= N || row < 0 || row >= N) return -1;
+  if (Math.abs(x - px(col)) > CELL * 0.45 || Math.abs(y - px(row)) > CELL * 0.45) return -1;
+  return row * N + col;
+}
+
+// ---- 온라인 대전 (서버 권위) ----
+// 서버(server.py)가 게임 규칙 전체를 실행하는 심판이다. 클라이언트는 액션만 보내고,
+// 서버가 그 플레이어에게 보여도 되는 것만 내려준다:
+//   상대의 미공개 히든/베이스/베팅액은 아예 전송되지 않는다 → 개발자 도구로도 못 본다.
+// 베이스빌드와 베팅은 동시 비밀 제출 (양쪽 다 내면 서버가 공개/해결).
+let online = { active: false, room: null, token: null, myPlayer: 0, seq: 0 };
+let onlineView = null;      // 서버가 준 마지막 뷰
+let pollTimer = null;
+
+function myColor() { return blackPlayer === online.myPlayer ? BLACK : WHITE; }
+let oppLastAction = '';   // 상대의 마지막 특수 행동 (히든/스캔/쉼) — 다음 내 착수까지 표시
+function onlineTag() {
+  if (online.aivai) return `👀 AI vs AI (${settings.aiLevel || '보통'})`;
+  return online.ai ? `🤖 AI (${settings.aiLevel || '보통'})`
+                   : `🌐 방 <b>${online.room}</b> · 나 = P${online.myPlayer}`;
+}
+
+// 서버 뷰를 로컬 렌더링 상태로 반영
+function applyView(v) {
+  const prev = onlineView;
+  onlineView = v;
+  phase = v.phase;                       // 'base' | 'bet' | 'play'
+  settings = v.settings;
+  currentField = v.currentField;
+  pointSpots = v.pointSpots || [];
+  blackPlayer = v.blackPlayer;
+  compensation = v.compensation;
+  scoringMode = v.scoringMode;
+  gameOver = v.gameOver;
+  deadFlags = v.deadFlags || (scoringMode ? new Array(N * N).fill(false) : null);
+
+  if (phase === 'bet' && v.board) revealBoard = Int8Array.from(v.board);
+
+  if (phase === 'play' && v.board) {
+    const mc = myColor();
+    const hidden = { 1: [], 2: [] };
+    hidden[mc] = v.myHidden || [];
+    history = [{
+      board: Int8Array.from(v.board),
+      turn: v.turn, capB: v.capB, capW: v.capW, passes: v.passes,
+      hidden,
+      revealed: v.revealed || [],
+      hiddenUsed: v.hiddenUsed || { 1: 0, 2: 0 },
+      scan: v.scan || { 1: 0, 2: 0 },
+      bases: v.bases || { 1: [], 2: [] },
+      lastMove: v.lastMove ?? null,
+    }];
+    clocks = v.clocks;                   // 서버 스냅샷 기준으로 로컬 표시 틱
+    if (clocks && !clockInterval && !gameOver) {
+      clockLastTs = Date.now();
+      clockColor = v.turn;
+      clockInterval = setInterval(clockTick, 250);
+    }
+    if (gameOver && clockInterval) { clearInterval(clockInterval); clockInterval = null; }
+  }
+
+  const resultEl = document.getElementById('result');
+  if (v.result) { resultEl.innerHTML = v.result; resultEl.classList.add('show'); }
+  else resultEl.classList.remove('show');
+
+  // 상대의 마지막 특수 행동 감지 (히든/스캔/쉼은 판에 안 보이므로 배지로 지속 표시)
+  if (online.active && prev && v.phase === 'play' && v.hiddenUsed) {
+    const oppC = oppOf(myColor());          // 1=흑, 2=백 (hiddenUsed/scan은 색 인덱스)
+    if (prev.hiddenUsed && v.hiddenUsed[oppC] > prev.hiddenUsed[oppC]) {
+      oppLastAction = '🕶️ 상대가 히든을 두었습니다 (위치 비공개)';
+    } else if (prev.scan && v.scan[oppC] > prev.scan[oppC]) {
+      oppLastAction = '📡 상대가 스캔을 사용했습니다';
+    } else if (v.turn === myColor() && v.lastMove == null &&
+               prev.passes != null && v.passes > prev.passes) {
+      oppLastAction = '⏭️ 상대가 한 수 쉬었습니다';
+    } else if (v.lastMove != null && (!prev || v.lastMove !== prev.lastMove)) {
+      oppLastAction = '';                    // 일반 착수는 판에 보이므로 배지 불필요
+    }
+  }
+
+  if (v.notice) setNotice(v.notice);
+  updateUI();
+  draw();
+}
+
+// 액션을 서버로 보내고, 서버가 계산한 내 뷰를 받아 반영
+async function apiAction(action) {
+  try {
+    const r = await fetch('/api/action', {
+      method: 'POST',
+      body: JSON.stringify({ room: online.room, token: online.token, action }),
+    }).then(x => x.json());
+    if (r.view) { online.seq = r.seq; applyView(r.view); }
+    if (r.error) setNotice(`⚠️ ${r.error}`);
+  } catch (e) { setNotice('⚠️ 서버 연결 실패 — 다시 시도하세요.'); }
+}
+
+// 온라인 모드의 조작 처리: 베이스 배치만 로컬(비밀), 나머지는 전부 서버로
+function onlineDispatch(action) {
+  if (online.aivai) { setNotice('👀 관전 모드입니다 — AI 대국을 지켜보세요.'); return; }
+  switch (action.type) {
+    case 'baseToggle': {
+      if (phase !== 'base' || onlineView?.myBaseConfirmed) return;
+      const arr = baseStones[online.myPlayer];
+      const at = arr.indexOf(action.idx);
+      if (at >= 0) arr.splice(at, 1);
+      else if (arr.length < settings.baseCount) arr.push(action.idx);
+      updateUI(); draw();
+      return;
+    }
+    case 'baseReset':
+      if (phase !== 'base' || onlineView?.myBaseConfirmed) return;
+      baseStones[online.myPlayer] = [];
+      updateUI(); draw();
+      return;
+    case 'baseConfirm':
+      apiAction({ type: 'baseConfirm', stones: baseStones[online.myPlayer] });
+      return;
+    case 'bet': {
+      const input = document.getElementById('betInput');
+      const v = parseFloat(input.value);
+      if (isNaN(v) || v < 0 || v > 50 || v % 1 !== 0) { setNotice('베팅은 정수만 가능합니다.'); return; }
+      input.value = '0';
+      apiAction({ type: 'bet', value: v });
+      return;
+    }
+    case 'undo':
+      setNotice('온라인 대국에서는 무르기가 없습니다.');
+      return;
+    default:
+      if (['move', 'hidden', 'scan', 'pass'].includes(action.type)) oppLastAction = '';   // 내가 두면 상대 행동 배지 지움
+      if (['move', 'hidden', 'scan'].includes(action.type)) uiMode = 'normal';             // 조준/히든 모드 해제 (특히 스캔은 차례 유지라 남으면 다음 착수가 막힘)
+      apiAction(action);   // move·hidden·scan·pass·resign·toggleDead·requestScoring·resumeGame·finalizeScore
+  }
+}
+
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    if (!online.active) return;
+    try {
+      const r = await fetch(`/api/poll?room=${online.room}&token=${online.token}&since=${online.seq}`)
+        .then(x => x.json());
+      if (r.view && r.seq > online.seq) { online.seq = r.seq; applyView(r.view); }
+      else if (r.clocks) { clocks = r.clocks; updateClockUI(); }   // 시계 보정
+    } catch (e) { /* 다음 폴링에서 재시도 */ }
+  }, 1000);
+}
+
+async function createRoom(settingsPayload, field, opts = {}) {
+  const r = await fetch('/api/create', {
+    method: 'POST',
+    body: JSON.stringify({ settings: settingsPayload, field, ai: !!opts.ai, aivai: !!opts.aivai }),
+  }).then(x => x.json());
+  online = { active: true, room: r.room, token: r.token, myPlayer: 1, seq: r.seq,
+             ai: !!r.ai, aivai: !!r.aivai };
+  applyView(r.view);
+  startPolling();
+  return r.room;
+}
+
+async function joinRoom(code) {
+  const r = await fetch('/api/join', { method: 'POST', body: JSON.stringify({ room: code }) }).then(x => x.json());
+  if (r.error) { setNotice(`⚠️ ${r.error}`); return false; }
+  online = { active: true, room: r.room, token: r.token, myPlayer: 2, seq: r.seq };
+  document.getElementById('setup').classList.remove('show');
+  applyView(r.view);
+  startPolling();
+  return true;
+}
+
+function leaveOnline() {
+  online = { active: false, room: null, token: null, myPlayer: 0, seq: 0 };
+  onlineView = null;
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = null;
+}
+
+// ---- 액션 디스패치 ----
+// 게임 상태를 바꾸는 모든 조작은 dispatch(action) 하나를 통해서만 이뤄진다.
+// 온라인 모드에선 실행 후 전체 상태를 서버로 push한다.
+function dispatch(action) {
+  if (online.active) { onlineDispatch(action); return; }   // 온라인: 서버가 심판
+  switch (action.type) {
+    case 'baseToggle': {   // 베이스빌드: 놓기/취소 토글
+      const p = phase === 'base1' ? 1 : phase === 'base2' ? 2 : 0;
+      if (!p) return;
+      const arr = baseStones[p];
+      const at = arr.indexOf(action.idx);
+      if (at >= 0) arr.splice(at, 1);
+      else if (arr.length < settings.baseCount) arr.push(action.idx);
+      updateUI();
+      draw();
+      break;
+    }
+    case 'baseReset': {
+      const p = phase === 'base1' ? 1 : phase === 'base2' ? 2 : 0;
+      if (!p) return;
+      baseStones[p] = [];
+      updateUI();
+      draw();
+      break;
+    }
+    case 'baseConfirm':     confirmBase(); break;
+    case 'bet':             confirmBet(); break;
+    case 'move':            attemptMove(action.idx, false); break;
+    case 'hidden':          attemptMove(action.idx, true); break;
+    case 'scan':            doScanAt(action.idx); break;
+    case 'pass':            pass(); break;
+    case 'undo':            undo(); break;
+    case 'toggleDead':      if (!gameOver) toggleDead(action.idx); break;
+    case 'requestScoring':  if (!scoringMode && !gameOver) { uiMode = 'normal'; enterScoring(); updateUI(); draw(); } break;
+    case 'resumeGame':      exitScoring(); break;
+    case 'finalizeScore':   finalizeScore(); break;
+    case 'resign':          doResign(); break;
+  }
+}
+
+// 특정 플레이어(색)에게 보여줄 상태 — 상대의 미공개 히든을 제거한 스냅샷.
+// 온라인에서는 서버가 이걸 각 클라이언트로 내려보낸다 (진실은 서버에만).
+function viewFor(color) {
+  const s = cur();
+  const opp = oppOf(color);
+  const board = s.board.slice();
+  for (const i of s.hidden[opp]) board[i] = EMPTY;
+  return {
+    phase, currentField, pointSpots: pointSpots.map(p => ({ ...p })),
+    blackPlayer, compensation, settings: { ...settings },
+    board: Array.from(board),
+    turn: s.turn, capB: s.capB, capW: s.capW, passes: s.passes,
+    myHidden: s.hidden[color].slice(),
+    oppHiddenCount: s.hidden[opp].length,
+    revealed: s.revealed.slice(),
+    hiddenUsed: { ...s.hiddenUsed },
+    scan: { ...s.scan },
+    bases: { 1: [...s.bases[1]], 2: [...s.bases[2]] },
+    clocks: clocks ? JSON.parse(JSON.stringify(clocks)) : null,
+    scoringMode, gameOver,
+  };
+}
+
+// 전체 대국 저장/복원 (관전·재접속·서버 저장용)
+function serializeGame() {
+  const resultEl = document.getElementById('result');
+  return JSON.stringify({
+    settings, currentField, pointSpots, blackPlayer, compensation,
+    baseStones, bets, phase, scoringMode, gameOver, clocks,
+    deadFlags,
+    result: resultEl.classList.contains('show') ? resultEl.innerHTML : null,
+    history: history.map(h => ({ ...h, board: Array.from(h.board) })),
+  });
+}
+
+function restoreGame(json) {
+  const d = JSON.parse(json);
+  const prevPhase = phase;
+  const prevUsed = history.length ? { ...cur().hiddenUsed } : null;
+  settings = d.settings;
+  currentField = d.currentField;
+  pointSpots = d.pointSpots;
+  blackPlayer = d.blackPlayer;
+  compensation = d.compensation;
+  baseStones = d.baseStones;
+  bets = d.bets;
+  phase = d.phase;
+  scoringMode = d.scoringMode;
+  gameOver = d.gameOver;
+  clocks = d.clocks;
+  history = d.history.map(h => ({ ...h, board: Int8Array.from(h.board) }));
+  deadFlags = scoringMode ? (d.deadFlags || new Array(N * N).fill(false)) : null;
+  uiMode = 'normal';
+  peek = false;
+
+  // 결과 패널 복원 (기권·시간패·계가 결과가 상대 화면에도 뜨도록)
+  const resultEl = document.getElementById('result');
+  if (d.result) { resultEl.innerHTML = d.result; resultEl.classList.add('show'); }
+  else resultEl.classList.remove('show');
+
+  // 시계 재가동 (원격 상태로 대국에 합류했을 때)
+  if (phase === 'play' && clocks && !gameOver && !clockInterval) {
+    clockLastTs = Date.now();
+    clockColor = cur().turn;
+    clockInterval = setInterval(clockTick, 250);
+  }
+  if (gameOver && clockInterval) { clearInterval(clockInterval); clockInterval = null; }
+
+  // 온라인: 원격 쪽에 단계 전환 안내
+  if (online.active && prevPhase !== phase) {
+    if (phase === 'base2' && online.myPlayer === 2) setNotice('🏗️ 내 베이스빌드 차례입니다!');
+    else if (phase === 'bet1') setNotice('⚡ 베이스 & 포인트 공개! 베팅을 진행하세요.');
+    else if (phase === 'bet2' && online.myPlayer === 2) setNotice('💰 내 베팅 차례입니다!');
+    else if (phase === 'play') setNotice(`🎬 대국 시작! ⚫ 흑 = P${blackPlayer} · 턴베팅 +${compensation}`);
+  }
+  // 온라인: 상대가 히든을 쓰면 알림 (위치는 비공개)
+  if (online.active && prevUsed && phase === 'play' && history.length && blackPlayer) {
+    const oppC = oppOf(myColor());
+    if (cur().hiddenUsed[oppC] > prevUsed[oppC]) setNotice('🕶️ 상대가 히든을 사용했습니다! (위치 비공개)');
+  }
+
+  updateUI();
+  draw();
+}
+
+// ---- 입력 ----
+// 클릭을 현재 UI 모드에 맞는 '액션'으로 해석해서 dispatch로 넘긴다
+function handleBoardClick(idx) {
+  if (phase === 'base1' || phase === 'base2' || phase === 'base') {
+    dispatch({ type: 'baseToggle', idx });
+  } else if (phase === 'play') {
+    if (scoringMode) dispatch({ type: 'toggleDead', idx });
+    else if (uiMode === 'scanTarget') dispatch({ type: 'scan', idx });
+    else if (uiMode === 'placeHidden') dispatch({ type: 'hidden', idx });
+    else dispatch({ type: 'move', idx });
+  }
+}
+
+canvas.addEventListener('click', e => {
+  const idx = eventToIdx(e);
+  if (idx >= 0) handleBoardClick(idx);
+});
+canvas.addEventListener('mousemove', e => {
+  const idx = eventToIdx(e);
+  if (idx !== hoverIdx) { hoverIdx = idx; draw(); }
+});
+canvas.addEventListener('mouseleave', () => { hoverIdx = -1; draw(); });
+
+document.getElementById('baseConfirmBtn').addEventListener('click', () => dispatch({ type: 'baseConfirm' }));
+document.getElementById('betConfirmBtn').addEventListener('click', () => dispatch({ type: 'bet' }));
+document.getElementById('passBtn').addEventListener('click', () => dispatch({ type: 'pass' }));
+document.getElementById('undoBtn').addEventListener('click', () => dispatch({ type: 'undo' }));
+document.getElementById('scoreBtn').addEventListener('click', () => dispatch({ type: 'finalizeScore' }));
+document.getElementById('resumeBtn').addEventListener('click', () => dispatch({ type: 'resumeGame' }));
+document.getElementById('newBtn').addEventListener('click', newGame);
+document.getElementById('setupStartBtn').addEventListener('click', startFromSetup);
+document.getElementById('modeSel').addEventListener('change', () => {
+  const mode = document.getElementById('modeSel').value;
+  document.getElementById('joinRow').style.display = mode === 'join' ? 'flex' : 'none';
+  document.getElementById('aiRow').style.display = (mode === 'ai' || mode === 'watch') ? 'flex' : 'none';
+  // 참가자는 방장의 설정을 그대로 받으므로 설정 선택 불필요
+  for (const id of ['fieldSel', 'mainSel', 'byoSel', 'baseCntSel', 'hiddenSel']) {
+    document.getElementById(id).disabled = mode === 'join';
+  }
+  document.getElementById('setupStartBtn').textContent =
+    mode === 'join' ? '방 참가' : mode === 'host' ? '방 만들기' : mode === 'watch' ? '관전 시작' : '대국 시작';
+});
+
+document.getElementById('hiddenBtn').addEventListener('click', () => {
+  if (uiMode === 'placeHidden') uiMode = 'normal';
+  else {
+    const s = cur();
+    if (s.hiddenUsed[s.turn] >= settings.hiddenMax) { setNotice('히든을 모두 사용했습니다.'); return; }
+    uiMode = 'placeHidden';
+    setNotice('🕶️ 히든 착수 모드 — 상대는 화면을 보지 마세요! 원하는 자리를 클릭.');
+  }
+  updateUI();
+  draw();
+});
+
+document.getElementById('peekBtn').addEventListener('click', () => {
+  peek = !peek;
+  if (peek) setNotice('👁️ 내 히든 표시 중 — 상대는 화면을 보지 마세요!');
+  else setNotice('');
+  updateUI();
+  draw();
+});
+
+document.getElementById('scanBtn').addEventListener('click', () => {
+  if (uiMode === 'scanTarget') {
+    uiMode = 'normal';
+    setNotice('');
+  } else {
+    const s = cur();
+    if (s.scan[s.turn] / SCAN_COST >= settings.scanMax) { setNotice('스캔을 모두 사용했습니다.'); return; }
+    uiMode = 'scanTarget';
+    setNotice(`📡 스캔할 중심 지점을 클릭하세요 (3×3 범위, 성공/실패 무관 상대 +${SCAN_COST}점).`);
+  }
+  updateUI();
+  draw();
+});
+
+document.getElementById('baseResetBtn').addEventListener('click', () => dispatch({ type: 'baseReset' }));
+
+// 계가 요청: 쉼 두 번 없이 양쪽 합의로 바로 계가 모드 진입
+document.getElementById('scoreReqBtn').addEventListener('click', () => dispatch({ type: 'requestScoring' }));
+
+// 기권: 오클릭 방지를 위해 두 번 눌러 확정 (무장 상태는 로컬 UI, 확정만 액션)
+let resignArmed = false;
+document.getElementById('resignBtn').addEventListener('click', () => {
+  if (phase !== 'play' || scoringMode || gameOver) return;
+  if (!resignArmed) {
+    resignArmed = true;
+    const btn = document.getElementById('resignBtn');
+    btn.classList.add('armed');
+    btn.textContent = '🏳️ 정말 기권?';
+    setNotice(`${colorName(cur().turn)} — 한 번 더 누르면 기권입니다. (다른 곳을 누르면 취소)`);
+  } else {
+    resignArmed = false;
+    dispatch({ type: 'resign' });
+  }
+});
+
+// ---- 실시간 점수 ----
+// 히든 정보가 새지 않도록 '보이는 판' 기준으로 계산
+function updateLiveScore() {
+  const el = document.getElementById('liveScore');
+  if (phase !== 'play' || scoringMode || gameOver) {
+    el.style.display = 'none';
+    return;
+  }
+  const s = cur();
+  const vis = s.board.slice();
+  for (const i of s.hidden[BLACK]) vis[i] = EMPTY;
+  for (const i of s.hidden[WHITE]) vis[i] = EMPTY;
+  const p = computeScoreParts(vis, s.bases, s.scan);
+  const diff = p.scoreB - p.scoreW;
+  const lead = diff === 0 ? '동점' : diff > 0 ? `흑 +${diff}` : `백 +${-diff}`;
+  el.style.display = '';
+  el.innerHTML = `⚫ <b>${p.scoreB}</b> : <b>${p.scoreW}</b> ⚪ <span class="lead">${lead}</span>`;
+}
+
+// ---- UI 갱신 ----
+function updateUI() {
+  const status = document.getElementById('status');
+  const infoBar = document.getElementById('infoBar');
+  const baseBtn = document.getElementById('baseConfirmBtn');
+  const betPanel = document.getElementById('betPanel');
+  const hint = document.getElementById('hintText');
+  const wrap = document.getElementById('boardWrap');
+
+  baseBtn.style.display = 'none';
+  betPanel.classList.remove('show');
+  for (const id of ['baseResetBtn','hiddenBtn','peekBtn','scanBtn','passBtn','undoBtn','scoreReqBtn','resignBtn','scoreBtn','resumeBtn']) {
+    document.getElementById(id).style.display = 'none';
+  }
+  wrap.classList.toggle('hiddenMode', uiMode === 'placeHidden');
+
+  // 기권 대기 상태 해제 (다른 조작이 일어나면 취소)
+  resignArmed = false;
+  const resignBtn = document.getElementById('resignBtn');
+  resignBtn.classList.remove('armed');
+  resignBtn.textContent = '🏳️ 기권';
+
+  if (phase === 'base1' || phase === 'base2' || phase === 'base') {
+    // 로컬: base1/base2 순차 · 온라인('base'): 양쪽 동시 비밀 배치
+    const p = phase === 'base' ? online.myPlayer : (phase === 'base1' ? 1 : 2);
+    const canEdit = phase !== 'base' || !(onlineView && onlineView.myBaseConfirmed);
+    const n = baseStones[p].length;
+    if (canEdit) {
+      status.innerHTML = `🏗️ ${online.active ? `나 (P${p})` : `플레이어 ${p}`} — 베이스빌드 (${n}/${settings.baseCount})`;
+      infoBar.innerHTML = `<span>돌을 ${settings.baseCount}개 놓고 확정하세요. 상대에게는 보이지 않습니다.</span>` +
+        (online.active ? `<span>${onlineTag()} · 상대 ${onlineView && onlineView.oppBaseConfirmed ? '확정 완료' : '배치 중…'}</span>` : '');
+      baseBtn.style.display = '';
+      baseBtn.disabled = n !== settings.baseCount;
+      baseBtn.textContent = `베이스빌드 확정 (${n}/${settings.baseCount})`;
+      const brb = document.getElementById('baseResetBtn');
+      brb.style.display = '';
+      brb.disabled = n === 0;
+    } else {
+      status.innerHTML = `⏳ 상대의 베이스빌드를 기다리는 중…`;
+      infoBar.innerHTML = `<span>🌐 방 <b>${online.room}</b> · 나 = P${online.myPlayer} · 내 확정 완료</span>`;
+    }
+    hint.textContent = '베이스 돌은 살아남으면 개당 5점! 겹친 돌은 공개 시 상쇄. +/− 포인트는 양쪽 포석이 끝난 뒤에 공개됩니다.';
+  } else if (phase === 'bet1' || phase === 'bet2' || phase === 'bet') {
+    const p = phase === 'bet' ? online.myPlayer : (phase === 'bet1' ? 1 : 2);
+    const canBet = phase !== 'bet' || !(onlineView && onlineView.myBetSubmitted);
+    if (canBet) {
+      status.innerHTML = `💰 ${online.active ? `나 (P${p})` : `플레이어 ${p}`} — 흑번 베팅${online.active ? ' (동시 비밀 베팅)' : ''}`;
+      infoBar.innerHTML = `<span>공개된 판세를 보고, 먼저 두는 대가로 낼 집 수를 정하세요.</span>` +
+        (online.active ? `<span>🌐 상대 ${onlineView && onlineView.oppBetSubmitted ? '베팅 완료' : '고민 중…'}</span>` : '');
+      document.getElementById('betLabel').textContent = online.active ? `내 베팅:` : `플레이어 ${p} 베팅:`;
+      betPanel.classList.add('show');
+    } else {
+      status.innerHTML = `⏳ 상대의 베팅을 기다리는 중…`;
+      infoBar.innerHTML = `<span>🌐 방 <b>${online.room}</b> · 나 = P${online.myPlayer} · 내 베팅 제출 완료</span>`;
+    }
+    hint.textContent = '베팅은 정수. 높게 부른 쪽이 흑(선수), 베팅액만큼 백에게 공제. 베팅 동점이면 무작위, 점수 동점이면 백 승. 포인트 유불리도 반영하세요.';
+  } else if (phase === 'play') {
+    const s = cur();
+    const whitePlayer = blackPlayer === 1 ? 2 : 1;
+    if (gameOver) {
+      status.innerHTML = '대국 종료';
+    } else if (scoringMode) {
+      status.innerHTML = '🧮 계가 모드 — 죽은 돌을 클릭하세요';
+    } else {
+      const cls = s.turn === BLACK ? 'black' : 'white';
+      const name = s.turn === BLACK ? `흑 (P${blackPlayer})` : `백 (P${whitePlayer})`;
+      const mode = uiMode === 'placeHidden' ? ' — 🕶️ 히든 착수 모드'
+                 : uiMode === 'scanTarget' ? ' — 📡 스캔 조준 중' : '';
+      const passNote = s.passes === 1 ? ' <span style="color:var(--muted);font-size:13px">(상대가 한 수 쉬었습니다)</span>' : '';
+      const onlineNote = online.active
+        ? (s.turn === myColor() ? ' <span style="color:var(--accent);font-size:13px">— 내 차례!</span>'
+                                : ' <span style="color:var(--muted);font-size:13px">— 상대 차례</span>')
+        : '';
+      status.innerHTML = `<span class="turn-dot ${cls}"></span> ${name} 차례${mode}${passNote}${onlineNote}`;
+      // 상대의 마지막 특수 행동(히든/스캔/쉼)은 판에 안 보이므로 배지로 명시
+      if (online.active && oppLastAction && s.turn === myColor()) {
+        status.innerHTML += ` <span style="color:#a78bfa;font-size:13px">· ${oppLastAction}</span>`;
+      }
+    }
+    const hidB = settings.hiddenMax - s.hiddenUsed[BLACK];
+    const hidW = settings.hiddenMax - s.hiddenUsed[WHITE];
+    infoBar.innerHTML =
+      `<span>🗺️ ${currentField}${online.active ? ` · ${onlineTag()}` : ''}</span>` +
+      `<span>⚫ P${blackPlayer} · 사석 <b>${s.capB}</b> · 히든 <b>${hidB}</b> · 베이스 <b>${s.bases[BLACK].length}</b>${s.scan[BLACK] ? ` · 스캔 <b>${s.scan[BLACK] / SCAN_COST}회</b>` : ''}</span>` +
+      `<span>⚪ P${whitePlayer} · 사석 <b>${s.capW}</b> · 히든 <b>${hidW}</b> · 베이스 <b>${s.bases[WHITE].length}</b> · 턴베팅 <b>+${compensation}</b>${s.scan[WHITE] ? ` · 스캔 <b>${s.scan[WHITE] / SCAN_COST}회</b>` : ''}</span>`;
+
+    if (online.aivai) {
+      // 관전 모드: 조작 버튼 없음
+      if (!gameOver && !scoringMode) {
+        const turnName = s.turn === BLACK ? '흑' : '백';
+        status.innerHTML = `<span class="turn-dot ${s.turn === BLACK ? 'black' : 'white'}"></span> 👀 관전 중 — ${turnName} 생각하는 중…`;
+      }
+    } else if (!scoringMode) {
+      const s2 = cur();
+      document.getElementById('hiddenBtn').style.display = '';
+      const hb = document.getElementById('hiddenBtn');
+      hb.classList.toggle('active', uiMode === 'placeHidden');
+      hb.disabled = gameOver || s2.hiddenUsed[s2.turn] >= settings.hiddenMax;
+      hb.textContent = uiMode === 'placeHidden' ? '🕶️ 히든 취소' : `🕶️ 히든 착수 (${settings.hiddenMax - s2.hiddenUsed[s2.turn]})`;
+      // 온라인에선 내 히든이 항상 보이므로 '히든 보기' 불필요
+      document.getElementById('peekBtn').style.display = online.active ? 'none' : '';
+      document.getElementById('peekBtn').textContent = peek ? '👁️ 히든 가리기' : '👁️ 내 히든 보기';
+      const sb = document.getElementById('scanBtn');
+      const scanLeft = settings.scanMax - s2.scan[s2.turn] / SCAN_COST;
+      sb.style.display = '';
+      sb.disabled = gameOver || scanLeft <= 0;
+      sb.classList.toggle('active', uiMode === 'scanTarget');
+      sb.textContent = uiMode === 'scanTarget' ? '📡 스캔 취소' : `📡 스캔 (${scanLeft}회 · 상대 +${SCAN_COST})`;
+      document.getElementById('passBtn').style.display = '';
+      document.getElementById('undoBtn').style.display = online.active ? 'none' : '';   // 온라인 무르기 금지
+      if (!gameOver) {
+        document.getElementById('scoreReqBtn').style.display = '';
+        document.getElementById('resignBtn').style.display = '';
+      }
+    } else {
+      document.getElementById('scoreBtn').style.display = gameOver ? 'none' : '';
+      document.getElementById('resumeBtn').style.display = '';
+    }
+    hint.textContent = '+/− 지점은 돌로 차지해야 점수 반영 (중국룰이라 자기 진영에 돌을 채워도 손해 없음). 빈 − 지점은 집으로 세지 않습니다. 히든 기능은 상대가 화면을 안 볼 때 사용 (양심 시스템). 양쪽이 연속으로 쉬면 계가.';
+  } else {
+    status.innerHTML = '';
+    infoBar.innerHTML = '<span>새 대국을 시작하세요</span>';
+    hint.textContent = '';
+  }
+
+  updateLiveScore();
+  updateClockUI();
+}
+
+newGame();
+</script>
+</body>
+</html>
