@@ -28,7 +28,13 @@ python3 server.py            # 바투 서버 (기본 8890) → http://localhost:
 python3 arena.py 8           # 착수전용 모델 vs UCT 8판 측정
 ./tunnel.sh                  # 인터넷 공개 (서버 먼저 켤 것! 순서 바뀌면 503으로 꼬임)
 ```
-학습은 `README_LINUX_TRAIN.md` 참고 (torch 필요, `--workers N` 병렬은 spawn 방식).
+
+**의존성**: 게임·서버는 파이썬 표준 라이브러리만으로 완전 동작. `torch`는 신경망 AI 난이도와
+학습에만 필요 (`pip install torch`) — 없으면 서버가 자동으로 UCT AI로 폴백하므로 게임은 그대로 됨.
+**모델 파일은 리포에 포함돼 있고 클론만으로 로드됨** (검증 완료 — batoo_net.pt는 train_batoo.py의
+BatooNet 클래스로, batoo_net_full.pt는 train_batoo_full.py로 로드. 체크포인트에 옵티마이저 상태도
+들어있어 어느 머신에서든 이어학습 가능).
+학습 자체는 `README_LINUX_TRAIN.md` 참고 (`--workers N` 병렬은 spawn 방식).
 
 ## ⚠️ 절대 규칙: 게임 규칙은 3벌 동기화
 
