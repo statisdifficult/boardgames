@@ -22,6 +22,7 @@ arena.py / arena_full.py   학습모델 vs UCT 자동 대결 (승률 측정)
 batoo_net.pt          현역 착수전용 모델 (iter739, vs UCT 62% — 게임에 연결됨)
 batoo_net_full.pt     풀게임 모델 (iter510 — ⚠️ 백 정책 붕괴 버그로 서버에서 비활성화됨)
 README_LINUX_TRAIN.md 학습 전용 인수인계 (다코어 리눅스에서 돌리는 법, 사건 이력)
+README_LINUX_SERVER.md 리눅스 상시 게임서버 인수인계 (systemd 자동복구 + 포트개방/터널 + 신경망 켜기)
 batoo_colab.ipynb     코랩 학습용 노트북
 baduk/ omok/ chess/ 등   게임 19종 단일 HTML (다크 테마 통일, 전부 우하단 📖 룰 패널 내장)
 ```

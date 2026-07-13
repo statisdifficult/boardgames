@@ -43,7 +43,8 @@ python3 cloud_server.py            # → http://localhost:8890/
 ## 개발 문서
 
 - `CLAUDE.md` — 프로젝트 구조·규칙·개발 시 주의사항 (AI 어시스턴트용 인수인계 포함)
-- `DEPLOY.md` — 클라우드 배포 안내
+- `DEPLOY.md` — 클라우드 배포 안내 (Render)
+- `README_LINUX_SERVER.md` — 리눅스 머신 상시 서버 운영 가이드 (systemd·터널·신경망)
 - `README_LINUX_TRAIN.md` — 바투 신경망 학습 가이드
 
 > 바투 원작(이플레이온, 2009 서비스 종료)의 규칙을 플레이 경험 기반으로 고증한 팬 재현작입니다.
