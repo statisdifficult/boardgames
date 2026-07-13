@@ -559,7 +559,7 @@ function stopAuto(msg) {
   autoInt = null;
   autoRunning = false;
   if (msg) note(msg);
-  updateUI();
+  if (state) updateUI();   // 첫 start() 시점엔 state가 아직 없다
 }
 
 function runAutoComplete() {

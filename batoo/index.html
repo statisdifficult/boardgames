@@ -260,7 +260,8 @@
     <div class="setupRow"><label>모드</label>
       <select id="modeSel">
         <option value="local">로컬 2인</option>
-        <option value="ai">🤖 AI 대전</option>
+        <option value="localai">🤖 AI 대전 (오프라인·서버 불필요)</option>
+        <option value="ai">🤖 AI 대전 (서버·신경망)</option>
         <option value="watch">👀 AI vs AI 관전</option>
         <option value="host">온라인 · 방 만들기</option>
         <option value="join">온라인 · 참가</option>
@@ -353,6 +354,9 @@ let gameOver = false;
 let hoverIdx = -1;
 let uiMode = 'normal';                  // normal | placeHidden
 let peek = false;                       // 내 히든 표시 중
+let vsAI = false;                       // 오프라인 AI 대전(플레이어 2 = 클라이언트 AI)
+let aiThinking = false;                 // AI가 수를 계산/두는 중 (사람 클릭 차단)
+const AI_PLAYER = 2;                    // AI가 담당하는 플레이어 번호
 
 function cur() { return history[history.length - 1]; }
 function oppOf(c) { return c === BLACK ? WHITE : BLACK; }
@@ -560,6 +564,122 @@ function attemptMove(idx, asHidden) {
 
 function tryMove(idx) { return attemptMove(idx, false) === true; }
 
+// ================= 오프라인 클라이언트 AI (플레이어 2) =================
+// 서버·신경망 없이 브라우저 안에서 도는 규칙 기반 휴리스틱 상대.
+// 베이스빌드/베팅/착수를 모두 담당하고, 히든·스캔은 쓰지 않는다.
+
+function aiPlaceBase() {
+  const pts = [];
+  const lo = 2, hi = N - 3;
+  let guard = 0;
+  while (pts.length < settings.baseCount && guard++ < 600) {
+    const x = lo + Math.floor(Math.random() * (hi - lo + 1));
+    const y = lo + Math.floor(Math.random() * (hi - lo + 1));
+    const idx = y * N + x;
+    if (pts.includes(idx)) continue;
+    if (pts.some(p => Math.abs(p % N - x) + Math.abs(((p / N) | 0) - y) < 2)) continue; // 최소 간격
+    pts.push(idx);
+  }
+  while (pts.length < settings.baseCount && guard++ < 1200) {
+    const idx = Math.floor(Math.random() * N * N);
+    if (!pts.includes(idx)) pts.push(idx);
+  }
+  baseStones[AI_PLAYER] = pts.slice(0, settings.baseCount);
+}
+
+function aiBet() {
+  return [0, 1, 1, 2][Math.floor(Math.random() * 4)];   // 낮게 베팅 (0~2집)
+}
+
+// AI가 담당하는 색이 현재 둘 차례인가?
+function isAITurn() {
+  if (!vsAI || phase !== 'play' || scoringMode || gameOver) return false;
+  const aiColor = (blackPlayer === AI_PLAYER) ? BLACK : WHITE;
+  return cur().turn === aiColor;
+}
+
+// 착수 후보 평가 — 가장 좋은 자리 idx, 둘 만한 곳이 없으면 -1(패스)
+function aiChooseMove(s) {
+  const me = s.turn, opp = oppOf(me);
+  let best = -1, bestScore = 0.35;   // 이 임계값보다 못하면 패스
+  for (let idx = 0; idx < N * N; idx++) {
+    if (s.board[idx] !== EMPTY) continue;
+    const r = computeMove(s, idx);
+    if (!r) continue;                // 불법/자살/패
+    let sc = 0;
+    const cap = r.capturedIdx.length;
+    sc += cap * 3;
+    const baseCap = s.bases[opp].filter(i => r.capturedIdx.includes(i)).length;
+    sc += baseCap * 5;               // 상대 베이스 격파는 크게
+
+    const g = groupOf(r.board, idx);
+    if (g.liberties === 1 && cap === 0) sc -= 4;    // 자충수 회피
+    else sc += Math.min(g.liberties, 4) * 0.25;
+
+    const ps = pointSpots.find(p => p.idx === idx);
+    if (ps) sc += ps.val;            // +포인트 점유는 이득, −포인트는 손해
+
+    const nbs = neighbors(idx);
+    let ownNb = 0;
+    for (const nb of nbs) {
+      if (s.board[nb] === opp) {
+        sc += 0.4;                                  // 상대와 접촉(전투)
+        const og = groupOf(r.board, nb);
+        if (og.stones.length && og.liberties === 1) sc += 2;   // 아타리 유도
+      } else if (s.board[nb] === me) {
+        ownNb++;
+        sc += 0.15;                                 // 내 돌과 연결
+      }
+    }
+    if (ownNb === nbs.length) sc -= 3;              // 내 눈 메우기 금지
+
+    // 발전: 내 돌/베이스에서 한두 칸 벌려 두기 (초반 개발)
+    let nearOwn = 99;
+    for (let j = 0; j < N * N; j++) {
+      if (s.board[j] === me) {
+        const d = Math.abs(j % N - idx % N) + Math.abs(((j / N) | 0) - ((idx / N) | 0));
+        if (d < nearOwn) nearOwn = d;
+      }
+    }
+    if (nearOwn >= 1 && nearOwn <= 3) sc += (3 - Math.abs(2 - nearOwn)) * 0.4;
+
+    const x = idx % N, y = (idx / N) | 0;
+    const edge = Math.min(x, y, N - 1 - x, N - 1 - y);
+    if (edge === 0) sc -= 0.8;       // 1선 기피
+    sc += edge * 0.04;               // 약한 중앙 선호
+    sc += Math.random() * 0.12;      // 동점 분산
+
+    if (sc > bestScore) { bestScore = sc; best = idx; }
+  }
+  return best;
+}
+
+// 현재 AI 차례면 잠깐 뒤 한 수 두게 예약
+function scheduleAI() {
+  if (!isAITurn() || aiThinking) return;
+  aiThinking = true;
+  updateUI();
+  setTimeout(aiThink, 480);
+}
+
+function aiThink() {
+  if (!vsAI || phase !== 'play' || scoringMode || gameOver) { aiThinking = false; return; }
+  const aiColor = (blackPlayer === AI_PLAYER) ? BLACK : WHITE;
+  if (cur().turn !== aiColor) { aiThinking = false; return; }
+
+  const mv = aiChooseMove(cur());
+  aiThinking = false;
+  if (mv < 0) {
+    pass();
+    if (!scoringMode) setNotice('🤖 AI가 패스했습니다. (양쪽 연속 패스 시 계가)');
+  } else {
+    attemptMove(mv, false);
+  }
+  // 히든 발각 등으로 차례가 그대로면 이어서 한 수 더
+  if (isAITurn()) scheduleAI();
+  else updateUI();
+}
+
 // 지정한 교차점 중심 3×3 범위를 스캔. 성공/실패 무관 상대에게 2점.
 function doScanAt(center) {
   if (phase !== 'play' || scoringMode || gameOver) return;
@@ -675,6 +795,8 @@ function newGame() {
   hoverIdx = -1;
   uiMode = 'normal';
   peek = false;
+  vsAI = false;
+  aiThinking = false;
   stopClocks();
   leaveOnline();
   oppLastAction = '';
@@ -689,6 +811,10 @@ function newGame() {
 // 설정 확정 → (온라인이면 방 생성/참가) → 베이스빌드 시작
 async function startFromSetup() {
   const mode = document.getElementById('modeSel').value;
+
+  // 오프라인 AI: 서버 없이 로컬 흐름을 타되, 플레이어 2를 클라이언트 AI가 담당
+  vsAI = (mode === 'localai');
+  aiThinking = false;
 
   if (mode === 'join') {
     const code = document.getElementById('roomInput').value.trim().toUpperCase();
@@ -736,6 +862,12 @@ async function startFromSetup() {
 
 function confirmBase() {
   if (phase === 'base1') {
+    if (vsAI) {                 // 오프라인 AI: P2 베이스를 자동 배치 후 바로 공개
+      aiPlaceBase();
+      resolveReveal();
+      updateUI(); draw();
+      return;
+    }
     if (online.active) {
       phase = 'base2';
       setNotice('내 베이스빌드 완료 — 상대를 기다립니다…');
@@ -809,6 +941,12 @@ function confirmBet() {
   if (phase === 'bet1') {
     bets[1] = v;
     input.value = '0';
+    if (vsAI) {                 // 오프라인 AI: P2 베팅 자동 → 바로 결과 산출
+      bets[2] = aiBet();
+      resolveBets();
+      updateUI();
+      return;
+    }
     if (online.active) {
       phase = 'bet2';
       setNotice('내 베팅 완료 — 상대의 베팅을 기다립니다…');
@@ -892,7 +1030,7 @@ function resolveBets() {
     showOverlay('베팅 결과', betText, '확인', () => { updateUI(); draw(); });
   } else {
     showOverlay('베팅 결과', betText, '대국 시작',
-      () => { phase = 'play'; startClocks(); updateUI(); draw(); });
+      () => { phase = 'play'; startClocks(); updateUI(); draw(); scheduleAI(); });
   }
   updateUI();
   draw();
@@ -1563,6 +1701,7 @@ function dispatch(action) {
     case 'finalizeScore':   finalizeScore(); break;
     case 'resign':          doResign(); break;
   }
+  scheduleAI();   // 오프라인 AI 차례면 이어서 둔다
 }
 
 // 특정 플레이어(색)에게 보여줄 상태 — 상대의 미공개 히든을 제거한 스냅샷.
@@ -1653,6 +1792,7 @@ function restoreGame(json) {
 // ---- 입력 ----
 // 클릭을 현재 UI 모드에 맞는 '액션'으로 해석해서 dispatch로 넘긴다
 function handleBoardClick(idx) {
+  if (vsAI && phase === 'play' && (aiThinking || isAITurn())) return;   // AI 차례엔 사람 클릭 무시
   if (phase === 'base1' || phase === 'base2' || phase === 'base') {
     dispatch({ type: 'baseToggle', idx });
   } else if (phase === 'play') {
