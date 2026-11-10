@@ -24,6 +24,7 @@ batoo_net_full.pt     풀게임 모델 (iter510 — ⚠️ 백 정책 붕괴 버
 README_LINUX_TRAIN.md 학습 전용 인수인계 (다코어 리눅스에서 돌리는 법, 사건 이력)
 README_LINUX_SERVER.md 리눅스 상시 게임서버 인수인계 (systemd 자동복구 + 포트개방/터널 + 신경망 켜기)
 batoo_colab.ipynb     코랩 학습용 노트북
+gameone/index.html    ⚾ 야구 전력분석 도구 (게임원 기록 붙여넣기→선수기록/타구방향/팀 비교/자동매치, 단일 HTML, localStorage)
 baduk/ omok/ chess/ 등   게임 19종 단일 HTML (다크 테마 통일, 전부 우하단 📖 룰 패널 내장)
 ```
 
@@ -100,3 +101,11 @@ BatooNet 클래스로, batoo_net_full.pt는 train_batoo_full.py로 로드. 체�
 - 원래 개발 맥에는 node 없음 → JS 로직 테스트를 osascript JXA로 했음. 새 환경에 node 있으면 그냥 node 써도 됨
 - 각 게임 HTML은 의존성 없는 단일 파일 — 정적 서버면 어디서든 동작
 - 게임 규칙을 바꾸면 해당 게임의 📖 룰 패널 내용도 같이 갱신할 것
+
+## 2026-11-10 웹 세션 — 야구 전력분석 도구 (gameone/)
+
+- 게임원(gameone.kr) 사회인야구 기록 분석용. **gameone.kr robots.txt가 ClaudeBot 등 AI 크롤러를 전면 차단**하므로
+  자동 수집기는 만들지 않았고, 사용자가 표를 복사→붙여넣기 하는 방식(열 이름 자동 인식, 팀 열 있으면 팀별 분류)
+- 탭: 팀·가져오기 / 선수 기록(정렬·파생지표) / 타구 방향(그라운드 클릭·문자중계 파싱, 당김·땅볼 비율, 시프트 추천) /
+  전력 비교(예상 승률·스코어, 지표별 우위) / 자동 매치(우리 팀 vs 전 팀, 리그 매트릭스) / 데이터(JSON·CSV)
+- 예측식: 공격지수=(OBP×SLG)/리그, 실점지수=RA/리그, 경기 결과와 반반 + 소표본 평균회귀, 피타고리안 1.83
