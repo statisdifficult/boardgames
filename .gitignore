@@ -13,3 +13,4 @@ batoo_net_full_OLD*.pt
 
 # 로컬 전용 설정
 .claude/settings.local.json
+gameone/gameone_data.json

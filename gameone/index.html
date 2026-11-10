@@ -121,7 +121,13 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--surface-2)}
     <div class="tw"><table id="teamTable"></table></div>
   </div>
   <div class="card">
-    <h2>게임원 기록 붙여넣기</h2>
+    <h2>게임원에서 자동으로 받아오기</h2>
+    <p class="sec" style="margin-top:-4px">내 컴퓨터 터미널에서 리그 주소로 한 번 실행하면 리그 전체 팀의 타자·투수 기록과 경기 결과를 받아옵니다.</p>
+    <pre style="background:var(--surface-2);padding:10px;border-radius:8px;overflow-x:auto;font-size:12px">python3 gameone_sync.py "https://www.gameone.kr/league/?lig_idx=리그번호" --serve</pre>
+    <p class="muted">끝나면 이 화면이 자동으로 열리고 기록이 반영됩니다. 새 경기가 끝날 때마다 같은 명령을 다시 실행하면 최신 기록으로 갱신됩니다(타구 기록은 유지). 리그 주소는 게임원에서 리그 첫 화면 주소창에 있는 주소입니다.</p>
+  </div>
+  <div class="card">
+    <h2>게임원 기록 붙여넣기 <span class="muted">(자동 수집이 안 될 때)</span></h2>
     <p class="muted" style="margin-top:-4px">게임원 팀/리그 기록 페이지에서 표를 <b>제목줄(이름·타수·안타…)까지 포함해</b> 드래그 → 복사(Ctrl+C) → 아래에 붙여넣기. 열 이름을 자동 인식합니다. 표에 <b>팀</b> 열이 있으면(리그 전체 기록) 팀별로 자동 분류됩니다.</p>
     <div class="row" style="margin-bottom:8px">
       <span class="tog row" id="impMode" style="gap:0">
@@ -847,7 +853,8 @@ function gotoCompare(a,b){$('cmpA').value=a;$('cmpB').value=b;showTab('compare')
 /* ====================== 데이터 ====================== */
 function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 function exportJSON(){download(`전력분석_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(S,null,1),'application/json')}
-function importJSON(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);if(!o.teams)throw 0;if(!confirm('현재 데이터를 불러온 파일로 바꿀까요?'))return;S=Object.assign({teams:[],myTeam:null,settings:{inn:9}},o);save();refreshAll();alert('불러오기 완료')}catch(e){alert('올바른 백업 파일이 아닙니다.')}};r.readAsText(f);inp.value=''}
+function importJSON(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);if(!o.teams)throw 0;
+  if(o.source==='gameone_sync'){const m=mergeSync(o);alert(m);return}if(!confirm('현재 데이터를 불러온 파일로 바꿀까요?'))return;S=Object.assign({teams:[],myTeam:null,settings:{inn:9}},o);save();refreshAll();alert('불러오기 완료')}catch(e){alert('올바른 백업 파일이 아닙니다.')}};r.readAsText(f);inp.value=''}
 function exportCSV(){
   const head=['팀','이름','No','타석구분',...BATK.map(k=>LABEL[k]),'타율','출루율','장타율','OPS','이닝',...PITK.filter(k=>k!=='OUTS').map(k=>'투_'+PLABEL[k]),'ERA','WHIP','타구수'];
   const lines=[head];
@@ -857,6 +864,32 @@ function exportCSV(){
 }
 function resetAll(){if(confirm('모든 팀·선수·타구 기록을 삭제합니다. 먼저 JSON 내보내기로 백업하세요. 계속할까요?')){S={teams:[],myTeam:null,settings:{inn:9}};save();refreshAll()}}
 $('setInn').addEventListener('change',()=>{S.settings.inn=+$('setInn').value;save();refreshAll()});
+
+/* ====================== 자동 수집 데이터 합치기 (gameone_sync.py) ====================== */
+function mergeSync(o){
+  let nt=0,np=0,ng=0;
+  o.teams.forEach(st=>{
+    let t=S.teams.find(x=>sameName(x.name,st.name));if(!t){t=newTeam(st.name);S.teams.push(t);nt++}
+    (st.players||[]).forEach(sp=>{
+      let p=t.players.find(q=>q.name===sp.name&&(!sp.no||!q.no||q.no===sp.no));
+      if(!p){p=newPlayer(sp.name,sp.no);t.players.push(p);np++}
+      if(sp.no&&!p.no)p.no=sp.no;
+      if(sp.bat)p.bat=Object.assign({},sp.bat);   // 최신 누적 기록으로 교체 (타구·좌우타 정보는 유지)
+      if(sp.pit)p.pit=Object.assign({},sp.pit);
+    });
+    (st.games||[]).forEach(g=>{if(!t.games.some(y=>y.date===g.date&&sameName(y.opp,g.opp)&&y.rf===g.rf&&y.ra===g.ra)){t.games.push({id:uid(),date:g.date,opp:g.opp,rf:g.rf,ra:g.ra});ng++}});
+  });
+  S.lastSync=o.fetched_at;save();refreshAll();
+  return`게임원 자동 수집 반영 (${o.fetched_at}) — 새 팀 ${nt}, 새 선수 ${np}, 새 경기 ${ng}`;
+}
+function autoSync(){
+  if(!/^https?:/.test(location.protocol))return;
+  fetch('gameone_data.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(o=>{
+    if(!o||o.source!=='gameone_sync'||o.fetched_at===S.lastSync)return;
+    const msg=mergeSync(o);const d=document.createElement('div');d.className='note';d.style.cssText='max-width:1180px;margin:12px auto 0';d.textContent='✅ '+msg;
+    document.querySelector('main').prepend(d);setTimeout(()=>d.remove(),9000);
+  }).catch(()=>{});
+}
 
 /* ====================== 샘플 ====================== */
 function loadSample(){
@@ -908,7 +941,7 @@ document.addEventListener('mousemove',e=>{const el=e.target.closest&&e.target.cl
   let x=e.clientX+14,y=e.clientY+14;if(x+w>innerWidth-8)x=e.clientX-w-14;if(y+h>innerHeight-8)y=e.clientY-h-14;tip.style.left=x+'px';tip.style.top=y+'px'});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeM();toggleRules(false)}});
 $('spDate').value=new Date().toISOString().slice(0,10);
-load();refreshAll();
+load();refreshAll();autoSync();
 try{const t=localStorage.getItem(KEY+'-tab');if(t&&$('t-'+t))showTab(t)}catch(e){}
 </script>
 </body>

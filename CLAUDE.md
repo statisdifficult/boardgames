@@ -25,6 +25,7 @@ README_LINUX_TRAIN.md 학습 전용 인수인계 (다코어 리눅스에서 돌�
 README_LINUX_SERVER.md 리눅스 상시 게임서버 인수인계 (systemd 자동복구 + 포트개방/터널 + 신경망 켜기)
 batoo_colab.ipynb     코랩 학습용 노트북
 gameone/index.html    ⚾ 야구 전력분석 도구 (게임원 기록 붙여넣기→선수기록/타구방향/팀 비교/자동매치, 단일 HTML, localStorage)
+gameone_sync.py       ⚾ 게임원 리그 기록 자동 수집기 (stdlib, 사용자 PC에서 실행 → gameone/gameone_data.json → 도구가 자동 병합)
 baduk/ omok/ chess/ 등   게임 19종 단일 HTML (다크 테마 통일, 전부 우하단 📖 룰 패널 내장)
 ```
 
@@ -109,3 +110,7 @@ BatooNet 클래스로, batoo_net_full.pt는 train_batoo_full.py로 로드. 체�
 - 탭: 팀·가져오기 / 선수 기록(정렬·파생지표) / 타구 방향(그라운드 클릭·문자중계 파싱, 당김·땅볼 비율, 시프트 추천) /
   전력 비교(예상 승률·스코어, 지표별 우위) / 자동 매치(우리 팀 vs 전 팀, 리그 매트릭스) / 데이터(JSON·CSV)
 - 예측식: 공격지수=(OBP×SLG)/리그, 실점지수=RA/리그, 경기 결과와 반반 + 소표본 평균회귀, 피타고리안 1.83
+- **gameone_sync.py**: 리그 주소 하나로 /league/record/batter·pitcher, /league/schedule/result 를 받아 표를 범용 파싱
+  (열 이름 사전은 index.html 과 동일하게 유지할 것). 게임원 서버가 약한 DH 키라 SECLEVEL=1 필요.
+  ⚠️ 실제 게임원 HTML로는 미검증(가짜 HTML 픽스처로만 테스트) — 인식 실패 시 `--dump` 결과를 받아 맞출 것.
+  Claude가 직접 gameone.kr을 크롤링하지 말 것 (robots.txt가 ClaudeBot 차단). 사용자 PC에서 사용자가 실행하는 도구로만.
